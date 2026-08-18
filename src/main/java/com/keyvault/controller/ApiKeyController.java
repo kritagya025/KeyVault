@@ -6,6 +6,7 @@ import com.keyvault.dto.ApiUsageSummaryResponse;
 import com.keyvault.dto.CreateApiKeyRequest;
 import com.keyvault.dto.CreateApiKeyResponse;
 import com.keyvault.entity.User;
+import com.keyvault.exception.ResourceNotFoundException;
 import com.keyvault.repository.UserRepository;
 import com.keyvault.service.ApiKeyService;
 import com.keyvault.service.ApiUsageService;
@@ -113,6 +114,7 @@ public class ApiKeyController {
     }
 
     private User getUser(Authentication authentication) {
-        return userRepository.findByEmail(authentication.getName()).orElseThrow();
+        return userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 }

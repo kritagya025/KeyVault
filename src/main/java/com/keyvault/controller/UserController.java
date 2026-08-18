@@ -2,6 +2,7 @@ package com.keyvault.controller;
 
 import com.keyvault.dto.UserResponse;
 import com.keyvault.entity.User;
+import com.keyvault.exception.ResourceNotFoundException;
 import com.keyvault.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -25,14 +26,8 @@ public class UserController {
     @GetMapping("/me")
     @Operation(summary = "Get Current User Profile", description = "Retrieve details of the currently authenticated JWT user.")
     public ResponseEntity<UserResponse> getCurrentUser(Authentication authentication) {
-        User user = userRepository.findByEmail(authentication.getName()).orElseThrow();
-        UserResponse response = UserResponse.builder()
-                .id(user.getId())
-                .name(user.getName())
-                .email(user.getEmail())
-                .role(user.getRole())
-                .createdAt(user.getCreatedAt())
-                .build();
-        return ResponseEntity.ok(response);
+        User user = userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return ResponseEntity.ok(UserResponse.fromEntity(user));
     }
 }
