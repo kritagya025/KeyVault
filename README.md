@@ -4,18 +4,19 @@ KeyVault is a lightweight, secure Spring Boot 3 backend service built for API Ke
 
 ---
 
-## 📌 Project Overview
+## Project Overview
 
-KeyVault solves the critical security problem of exposing raw secrets and managing API key lifecycles in modern distributed backend architectures. It provides:
-1. **User Authentication**: Secure JWT-based management portal for developers/users.
-2. **One-Way Hashing**: Raw API keys (`kv_live_...`) are returned **only once** upon generation/regeneration. Only SHA-256 hashes are persisted in PostgreSQL.
-3. **Granular Permissions**: API keys can be scoped with `READ` or `WRITE` permissions.
-4. **Lifecycle Management**: View, revoke, and regenerate keys with dynamic status calculation (`ACTIVE`, `REVOKED`, `EXPIRED`).
-5. **Usage Tracking**: Intercepts requests to record endpoint calls, HTTP method, response status codes, and success metrics per key without storing secrets.
+KeyVault addresses key lifecycle management and access control in backend architectures without storing plaintext credentials.
+
+- **User Authentication**: JWT-based access for developers/users managing their keys.
+- **One-Way Hashing**: Raw API keys (`kv_live_...`) are returned only once upon generation/regeneration. Only SHA-256 hashes are persisted in PostgreSQL.
+- **Granular Permissions**: API keys can be scoped with `READ` or `WRITE` permissions.
+- **Lifecycle Management**: View, revoke, and regenerate keys with dynamic status calculation (`ACTIVE`, `REVOKED`, `EXPIRED`).
+- **Usage Tracking**: Intercepts requests to record endpoint calls, HTTP methods, response status codes, and success metrics per key without logging sensitive data.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```text
 Client Application (Consumer)         Developer / Dashboard User
@@ -50,7 +51,7 @@ Client Application (Consumer)         Developer / Dashboard User
 
 ---
 
-## 🔐 Dual Authentication & Authorization
+## Dual Authentication & Authorization
 
 | Authentication Type | Header | Target Audience | Primary Use Case |
 | :--- | :--- | :--- | :--- |
@@ -58,12 +59,12 @@ Client Application (Consumer)         Developer / Dashboard User
 | **API Key Header** | `X-API-Key: <raw-key>` | External Services / API Consumers | Accessing protected consumer endpoints with enforced `READ`/`WRITE` permissions. |
 
 ### Security HTTP Status Code Distinction
-- **`401 Unauthorized`**: Returned when authentication fails (missing, invalid, revoked, or expired API Key / JWT).
-- **`403 Forbidden`**: Returned when an authenticated API key lacks the required permission (e.g. calling write endpoint with a `READ`-only key).
+- **`401 Unauthorized`**: Authentication failure (missing, invalid, revoked, or expired API Key / JWT).
+- **`403 Forbidden`**: Authenticated principal lacks required authority (e.g., calling write endpoint with a `READ`-only key).
 
 ---
 
-## 🔄 API Key Lifecycle
+## API Key Lifecycle
 
 ```text
        Generate Key (POST /api/keys)
@@ -93,18 +94,20 @@ Revoke Key (PATCH)   Key Expires (expiresAt < now)
 
 ---
 
-## 📊 API Usage Tracking Flow
+## API Usage Tracking Flow
 
-Every request using a valid API key is intercepted and logged:
+Requests using a valid API key are intercepted and logged:
+
 ```text
-X-API-Key Request ➔ Authenticate Key ➔ Check Permissions ➔ Controller ➔ ApiUsageFilter Logs (Endpoint, Status Code, Success Flag, Timestamp)
+X-API-Key Request -> Authenticate Key -> Check Permissions -> Controller -> ApiUsageFilter Logs (Endpoint, Status Code, Success Flag, Timestamp)
 ```
-- **Zero Secret Exposure**: `api_usage` records reference only `api_key_id`. Raw API keys and key hashes are **never stored** in usage logs.
-- **Security Privacy**: Unknown/invalid API key requests (`401 Unauthorized`) are **never tracked**.
+
+- **Zero Secret Exposure**: `api_usage` records reference only `api_key_id`. Raw API keys and hashes are never stored in usage logs.
+- **Privacy Enforcement**: Unauthenticated/invalid API key requests (`401 Unauthorized`) are not tracked.
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 - **Java**: 17
 - **Framework**: Spring Boot 3.4.2 (Spring Web, Spring Data JPA, Spring Security, Validation)
@@ -115,7 +118,7 @@ X-API-Key Request ➔ Authenticate Key ➔ Check Permissions ➔ Controller ➔ 
 
 ---
 
-## 🚀 Running Locally
+## Running Locally
 
 ### 1. Configure PostgreSQL
 Ensure PostgreSQL is running locally on port `5432` with database `keyvault_db`:
@@ -137,16 +140,16 @@ java -jar target/keyvault-0.0.1-SNAPSHOT.jar
 ```
 
 ### 4. Interactive API Documentation (Swagger UI)
-Open your browser and navigate to:
-👉 **`http://localhost:8080/swagger-ui.html`**
+Access the interactive OpenAPI interface at:
+`http://localhost:8080/swagger-ui.html`
 
-Use the **Authorize** button in Swagger UI to test endpoints with:
-- **`BearerAuth`**: Enter your JWT token for user/key management endpoints.
-- **`ApiKeyAuth`**: Enter your raw `X-API-Key` for protected consumer endpoints.
+Use the **Authorize** button in Swagger UI to test endpoints:
+- **`BearerAuth`**: Enter JWT token for user and key management endpoints.
+- **`ApiKeyAuth`**: Enter raw `X-API-Key` for protected consumer endpoints.
 
 ---
 
-## 📋 Complete API Endpoints Reference
+## Complete API Endpoints Reference
 
 ### 1. Health Check
 | Method | Endpoint | Auth | Description |
@@ -163,11 +166,11 @@ Use the **Authorize** button in Swagger UI to test endpoints with:
 ### 3. API Key Management & Usage
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/keys` | JWT | Generate new API key with permissions e.g. `["READ", "WRITE"]`. Returns raw key **once**. |
+| `POST` | `/api/keys` | JWT | Generate new API key with permissions (e.g. `["READ", "WRITE"]`). Returns raw key once. |
 | `GET` | `/api/keys` | JWT | List all API keys owned by current user. |
 | `GET` | `/api/keys/{id}` | JWT | Get single API key metadata, permissions, and status. |
 | `PATCH` | `/api/keys/{id}/revoke` | JWT | Revoke an API key immediately (`REVOKED`). |
-| `POST` | `/api/keys/{id}/regenerate` | JWT | Regenerate an `ACTIVE` or `EXPIRED` key. Issues new raw key **once**. |
+| `POST` | `/api/keys/{id}/regenerate` | JWT | Regenerate an `ACTIVE` or `EXPIRED` key. Issues new raw key once. |
 | `GET` | `/api/keys/{id}/usage` | JWT | Get aggregate request statistics (`totalRequests`, `successfulRequests`, `failedRequests`). |
 | `GET` | `/api/keys/{id}/usage/recent` | JWT | Get top 10 recent request log records for an API key. |
 
@@ -180,9 +183,9 @@ Use the **Authorize** button in Swagger UI to test endpoints with:
 
 ---
 
-## 🔒 Security Summary
+## Security Summary
 
-1. **BCrypt Password Hashing**: User passwords are encrypted using BCrypt before persistence.
+1. **BCrypt Password Hashing**: User passwords are encrypted using BCrypt prior to persistence.
 2. **SHA-256 Key Hashing**: Raw API keys are never stored. Only hex SHA-256 digests are stored in PostgreSQL.
 3. **One-Time Key Emission**: Raw keys (`kv_live_...`) are returned only once upon creation/regeneration.
 4. **Ownership Protection**: Cross-user access returns `404 Not Found` to prevent resource enumeration.
