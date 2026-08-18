@@ -9,6 +9,9 @@ import com.keyvault.entity.User;
 import com.keyvault.repository.UserRepository;
 import com.keyvault.service.ApiKeyService;
 import com.keyvault.service.ApiUsageService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,6 +30,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/keys")
 @RequiredArgsConstructor
+@Tag(name = "3. API Key Management & Usage", description = "API key generation, lifecycle management, and usage statistics")
+@SecurityRequirement(name = "BearerAuth")
 public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
@@ -34,6 +39,7 @@ public class ApiKeyController {
     private final UserRepository userRepository;
 
     @PostMapping
+    @Operation(summary = "Generate API Key", description = "Generate a new API key with optional expiration date and specified permissions (READ, WRITE). Returns the raw API key ONCE.")
     public ResponseEntity<CreateApiKeyResponse> createApiKey(
             Authentication authentication,
             @Valid @RequestBody CreateApiKeyRequest request
@@ -44,6 +50,7 @@ public class ApiKeyController {
     }
 
     @GetMapping
+    @Operation(summary = "List User API Keys", description = "Retrieve metadata and permissions for all API keys owned by the authenticated user.")
     public ResponseEntity<List<ApiKeyResponse>> getUserApiKeys(Authentication authentication) {
         User user = getUser(authentication);
         List<ApiKeyResponse> response = apiKeyService.getUserApiKeys(user);
@@ -51,6 +58,7 @@ public class ApiKeyController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Get API Key Details", description = "Retrieve metadata, permissions, and derived status for a specific API key.")
     public ResponseEntity<ApiKeyResponse> getApiKeyById(
             Authentication authentication,
             @PathVariable Long id
@@ -61,6 +69,7 @@ public class ApiKeyController {
     }
 
     @PatchMapping("/{id}/revoke")
+    @Operation(summary = "Revoke API Key", description = "Revoke an API key immediately. Revoked keys cannot be regenerated or used for authentication.")
     public ResponseEntity<ApiKeyResponse> revokeApiKey(
             Authentication authentication,
             @PathVariable Long id
@@ -71,6 +80,7 @@ public class ApiKeyController {
     }
 
     @PostMapping("/{id}/regenerate")
+    @Operation(summary = "Regenerate API Key", description = "Regenerate an ACTIVE or EXPIRED API key. Replaces old hash with a new key and returns the raw key ONCE.")
     public ResponseEntity<CreateApiKeyResponse> regenerateApiKey(
             Authentication authentication,
             @PathVariable Long id
@@ -81,6 +91,7 @@ public class ApiKeyController {
     }
 
     @GetMapping("/{id}/usage")
+    @Operation(summary = "Get API Key Usage Statistics", description = "Retrieve aggregate request statistics (total, successful, failed) for an API key owned by the user.")
     public ResponseEntity<ApiUsageStatsResponse> getUsageStats(
             Authentication authentication,
             @PathVariable Long id
@@ -91,6 +102,7 @@ public class ApiKeyController {
     }
 
     @GetMapping("/{id}/usage/recent")
+    @Operation(summary = "Get Recent API Key Usage Logs", description = "Retrieve up to 10 recent usage records (endpoint, method, status code, timestamp) for an API key owned by the user.")
     public ResponseEntity<List<ApiUsageSummaryResponse>> getRecentUsage(
             Authentication authentication,
             @PathVariable Long id
