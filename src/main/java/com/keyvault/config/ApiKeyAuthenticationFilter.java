@@ -28,6 +28,7 @@ import java.util.Optional;
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     public static final String API_KEY_HEADER = "X-API-Key";
+    public static final String AUTHENTICATED_API_KEY_ATTR = "AUTHENTICATED_API_KEY";
 
     private final ApiKeyRepository apiKeyRepository;
     private final ApiKeyGenerator apiKeyGenerator;
@@ -72,11 +73,8 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                } else {
-                    System.out.println("API Key is revoked or expired!");
+                    request.setAttribute(AUTHENTICATED_API_KEY_ATTR, apiKey);
                 }
-            } else {
-                System.out.println("API Key hash not found in database!");
             }
         }
 

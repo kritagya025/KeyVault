@@ -25,6 +25,7 @@ public class SecurityConfig {
 
     private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final ApiUsageFilter apiUsageFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -43,7 +44,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(apiKeyAuthenticationFilter, JwtAuthenticationFilter.class);
+                .addFilterBefore(apiKeyAuthenticationFilter, JwtAuthenticationFilter.class)
+                .addFilterBefore(apiUsageFilter, ApiKeyAuthenticationFilter.class);
 
         return http.build();
     }
