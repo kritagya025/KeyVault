@@ -1,0 +1,21 @@
+# Target build directory
+target/
+*.jar
+*.war
+*.ear
+*.class
+
+# Eclipse / IntelliJ / VS Code
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
