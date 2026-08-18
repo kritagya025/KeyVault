@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,6 +45,36 @@ public class ApiKeyController {
         User authenticatedUser = getAuthenticatedUser(authentication);
         List<ApiKeyResponse> responses = apiKeyService.getUserApiKeys(authenticatedUser);
         return ResponseEntity.ok(responses);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiKeyResponse> getApiKeyById(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        User authenticatedUser = getAuthenticatedUser(authentication);
+        ApiKeyResponse response = apiKeyService.getApiKeyById(authenticatedUser, id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{id}/revoke")
+    public ResponseEntity<ApiKeyResponse> revokeApiKey(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        User authenticatedUser = getAuthenticatedUser(authentication);
+        ApiKeyResponse response = apiKeyService.revokeApiKey(authenticatedUser, id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/regenerate")
+    public ResponseEntity<CreateApiKeyResponse> regenerateApiKey(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        User authenticatedUser = getAuthenticatedUser(authentication);
+        CreateApiKeyResponse response = apiKeyService.regenerateApiKey(authenticatedUser, id);
+        return ResponseEntity.ok(response);
     }
 
     private User getAuthenticatedUser(Authentication authentication) {

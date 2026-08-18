@@ -1,5 +1,6 @@
 package com.keyvault.dto;
 
+import com.keyvault.entity.Permission;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -8,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Data
 @Builder
@@ -20,4 +22,6 @@ public class CreateApiKeyRequest {
     private String name;
 
     private LocalDateTime expiresAt;
+
+    private Set<Permission> permissions;
 }
