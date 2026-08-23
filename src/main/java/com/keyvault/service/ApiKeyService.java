@@ -17,6 +17,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Service managing the lifecycle of API keys, including generation,
+ * SHA-256 hash storage, retrieval, revocation, and regeneration.
+ */
 @Service
 @RequiredArgsConstructor
 public class ApiKeyService {
@@ -24,6 +28,14 @@ public class ApiKeyService {
     private final ApiKeyRepository apiKeyRepository;
     private final ApiKeyGenerator apiKeyGenerator;
 
+    /**
+     * Generates a new API key for the authenticated user.
+     * Persists the SHA-256 hash and returns the raw key once.
+     *
+     * @param user the key owner
+     * @param request creation request containing key name, permissions, and optional expiry
+     * @return creation response with raw key emitted once
+     */
     @Transactional
     public CreateApiKeyResponse createApiKey(User user, CreateApiKeyRequest request) {
         if (request.getExpiresAt() != null && request.getExpiresAt().isBefore(LocalDateTime.now())) {
