@@ -183,6 +183,37 @@ Use the **Authorize** button in Swagger UI to test endpoints:
 
 ---
 
+## Quick cURL Testing Examples
+
+### 1. Register & Login
+```bash
+# Register
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alex","email":"alex@example.com","password":"password123"}'
+
+# Login
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alex@example.com","password":"password123"}'
+```
+
+### 2. Generate API Key
+```bash
+curl -X POST http://localhost:8080/api/keys \
+  -H "Authorization: Bearer <JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Production Key","permissions":["READ","WRITE"]}'
+```
+
+### 3. Consume Protected Endpoint with API Key
+```bash
+curl -X GET http://localhost:8080/api/protected/read \
+  -H "X-API-Key: kv_live_<RAW_KEY>"
+```
+
+---
+
 ## Security Summary
 
 1. **BCrypt Password Hashing**: User passwords are encrypted using BCrypt prior to persistence.
