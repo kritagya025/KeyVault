@@ -11,6 +11,9 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
+/**
+ * Utility component for generating, parsing, and validating JSON Web Tokens (JWT).
+ */
 @Component
 public class JwtUtils {
 
@@ -25,6 +28,12 @@ public class JwtUtils {
         this.jwtExpirationMs = jwtExpirationMs;
     }
 
+    /**
+     * Generates a signed JWT access token for the given user email.
+     *
+     * @param email the user's email subject
+     * @return compact URL-safe JWT string
+     */
     public String generateToken(String email) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
