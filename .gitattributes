@@ -1,0 +1,24 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Explicitly declare text files you want to always be normalized and converted
+# to native line endings on checkout
+*.java text diff=java
+*.xml text
+*.yml text
+*.yaml text
+*.properties text
+*.sql text
+*.md text
+*.json text
+*.gitignore text
+*.gitattributes text
+*.editorconfig text
+
+# Declare files that will always have CRLF line endings on checkout
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Declare files that will always have LF line endings on checkout
+*.sh text eol=lf
+mvnw text eol=lf
