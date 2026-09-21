@@ -30,6 +30,6 @@ EXPOSE 8080
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0"
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-    CMD wget --quiet --spider http://localhost:8080/api/health || exit 1
+    CMD wget -q -O /dev/null http://localhost:8080/api/health || exit 1
 
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/keyvault.jar"]
