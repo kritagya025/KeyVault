@@ -125,6 +125,7 @@ X-API-Key Request -> Authenticate Key -> Check Permissions -> Controller -> ApiU
 - **Documentation**: Springdoc OpenAPI 2.8.4 (Swagger UI)
 - **Database**: PostgreSQL (runtime), H2 in PostgreSQL compatibility mode (tests)
 - **Testing**: JUnit 5, Mockito, MockMvc, Spring Boot Test
+- **Frontend**: Bundled dashboard in vanilla HTML/CSS/ES modules (no build step)
 - **Build & Deploy**: Maven Wrapper, multi-stage Docker build, Docker Compose, GitHub Actions
 - **Utilities**: Lombok, JJWT 0.12.6, BCrypt, SHA-256
 
@@ -195,6 +196,25 @@ Or run it directly during development:
 ```bash
 ./mvnw spring-boot:run
 ```
+
+### Web Dashboard
+
+A dashboard is bundled into the jar and served at the application root:
+
+`http://localhost:8080/`
+
+It is plain HTML, CSS, and ES modules under `src/main/resources/static/` — no Node toolchain, no build step, and no separate deployment. Because it is served from the same origin as the API, no CORS configuration is involved; it authenticates with the same JWT any other client would use.
+
+| Capability | Detail |
+| :--- | :--- |
+| **Register / sign in** | Stores the returned JWT in `localStorage` and restores the session on reload. A rejected token signs the user out automatically. |
+| **Key table** | Name, derived status badge (`ACTIVE` / `REVOKED` / `EXPIRED`), permissions, creation and expiry timestamps. |
+| **Create key** | Name, `READ` / `WRITE` selection, and an optional expiry. The raw key is revealed once in a dialog with a copy button and is never shown again. |
+| **Regenerate / revoke** | Destructive actions use a two-step in-button confirm. Revoked keys lose both actions, matching the server rule that revocation is terminal. |
+| **Usage** | Total, successful, and failed request counts for the selected key, plus its ten most recent requests. |
+| **Endpoint tester** | Calls `/api/protected/*` with a raw key so `200` / `401` / `403` outcomes are visible directly in the UI. |
+
+`SecurityConfig` permits `GET` on the dashboard's static paths (`/`, `/index.html`, `/css/**`, `/js/**`) so the login page can load; every `/api/**` route stays protected. `DashboardAccessIntegrationTest` guards both halves of that rule.
 
 ### Interactive API Documentation (Swagger UI)
 Access the interactive OpenAPI interface at:
@@ -279,12 +299,12 @@ The suite runs against an in-memory H2 database in PostgreSQL compatibility mode
 ./mvnw test
 ```
 
-48 tests across two layers:
+50 tests across two layers:
 
 | Layer | Coverage |
 | :--- | :--- |
 | **Unit** (`ApiKeyServiceTest`, `AuthServiceTest`, `ApiUsageServiceTest`, `ApiKeyGeneratorTest`, `JwtUtilsTest`) | Key hashing and SHA-256 digests, permission defaulting, expiry validation, revocation idempotency, regeneration windows, BCrypt password handling, JWT signing, expiry and secret validation. |
-| **Integration** (`*IntegrationTest`) | Full request path through the Spring Security filter chain: registration and login, dual authentication, `READ`/`WRITE` permission enforcement, key lifecycle, ownership isolation, usage tracking, and key regeneration. |
+| **Integration** (`*IntegrationTest`) | Full request path through the Spring Security filter chain: registration and login, dual authentication, `READ`/`WRITE` permission enforcement, key lifecycle, ownership isolation, usage tracking, key regeneration, and dashboard asset access. |
 
 The `test` profile lives in `src/test/resources/application-test.yml`. Every test class is annotated `@ActiveProfiles("test")`, so no production configuration is ever loaded during a test run.
 

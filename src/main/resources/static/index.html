@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KeyVault</title>
+    <meta name="description" content="API key management and access control dashboard">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128273;</text></svg>">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ============================= Auth view ============================= -->
+<main id="auth-view" class="auth-shell" hidden>
+    <div class="auth-card">
+        <div class="brand brand--lg">
+            <span class="brand__mark" aria-hidden="true">KV</span>
+            <div>
+                <h1 class="brand__name">KeyVault</h1>
+                <p class="brand__tag">API key management &amp; access control</p>
+            </div>
+        </div>
+
+        <div class="tabs" role="tablist">
+            <button class="tab is-active" role="tab" data-auth-tab="login" aria-selected="true">Sign in</button>
+            <button class="tab" role="tab" data-auth-tab="register" aria-selected="false">Create account</button>
+        </div>
+
+        <form id="login-form" class="form" novalidate>
+            <label class="field">
+                <span class="field__label">Email</span>
+                <input type="email" name="email" autocomplete="email" required placeholder="you@example.com">
+            </label>
+            <label class="field">
+                <span class="field__label">Password</span>
+                <input type="password" name="password" autocomplete="current-password" required placeholder="••••••••">
+            </label>
+            <button type="submit" class="btn btn--primary btn--block">Sign in</button>
+        </form>
+
+        <form id="register-form" class="form" novalidate hidden>
+            <label class="field">
+                <span class="field__label">Name</span>
+                <input type="text" name="name" autocomplete="name" required placeholder="Ada Lovelace">
+            </label>
+            <label class="field">
+                <span class="field__label">Email</span>
+                <input type="email" name="email" autocomplete="email" required placeholder="you@example.com">
+            </label>
+            <label class="field">
+                <span class="field__label">Password</span>
+                <input type="password" name="password" autocomplete="new-password" required placeholder="At least 8 characters">
+            </label>
+            <button type="submit" class="btn btn--primary btn--block">Create account</button>
+        </form>
+
+        <p id="auth-error" class="alert alert--error" role="alert" hidden></p>
+    </div>
+</main>
+
+<!-- =========================== Dashboard view =========================== -->
+<div id="app-view" hidden>
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand__mark" aria-hidden="true">KV</span>
+            <span class="brand__name">KeyVault</span>
+        </div>
+        <div class="topbar__right">
+            <a class="topbar__link" href="swagger-ui.html" target="_blank" rel="noopener">API docs</a>
+            <span class="topbar__user" id="current-user" title="Signed in as"></span>
+            <button id="logout-btn" class="btn btn--ghost btn--sm">Sign out</button>
+        </div>
+    </header>
+
+    <main class="page">
+        <p id="app-error" class="alert alert--error" role="alert" hidden></p>
+
+        <!-- Keys -->
+        <section class="panel">
+            <div class="panel__head">
+                <div>
+                    <h2 class="panel__title">API Keys</h2>
+                    <p class="panel__sub">Raw keys are shown once at creation. Only SHA-256 hashes are stored.</p>
+                </div>
+                <button id="new-key-btn" class="btn btn--primary btn--sm">New key</button>
+            </div>
+
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Permissions</th>
+                        <th>Created</th>
+                        <th>Expires</th>
+                        <th class="ta-right">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody id="keys-body"></tbody>
+                </table>
+            </div>
+            <p id="keys-empty" class="empty" hidden>No API keys yet. Create one to get started.</p>
+        </section>
+
+        <div class="grid-2">
+            <!-- Usage -->
+            <section class="panel">
+                <div class="panel__head">
+                    <div>
+                        <h2 class="panel__title">Usage</h2>
+                        <p class="panel__sub" id="usage-subject">Select a key to view its request history.</p>
+                    </div>
+                    <button id="usage-refresh" class="btn btn--ghost btn--sm" hidden>Refresh</button>
+                </div>
+
+                <div id="usage-body" hidden>
+                    <div class="stats">
+                        <div class="stat">
+                            <span class="stat__value" id="stat-total">0</span>
+                            <span class="stat__label">Total</span>
+                        </div>
+                        <div class="stat stat--ok">
+                            <span class="stat__value" id="stat-success">0</span>
+                            <span class="stat__label">Successful</span>
+                        </div>
+                        <div class="stat stat--bad">
+                            <span class="stat__value" id="stat-failed">0</span>
+                            <span class="stat__label">Failed</span>
+                        </div>
+                    </div>
+
+                    <h3 class="subhead">Recent requests</h3>
+                    <div class="table-wrap">
+                        <table class="table table--compact">
+                            <thead>
+                            <tr>
+                                <th>Method</th>
+                                <th>Endpoint</th>
+                                <th>Status</th>
+                                <th>When</th>
+                            </tr>
+                            </thead>
+                            <tbody id="usage-log"></tbody>
+                        </table>
+                    </div>
+                    <p id="usage-empty" class="empty" hidden>No requests recorded for this key yet.</p>
+                </div>
+            </section>
+
+            <!-- Endpoint tester -->
+            <section class="panel">
+                <div class="panel__head">
+                    <div>
+                        <h2 class="panel__title">Endpoint tester</h2>
+                        <p class="panel__sub">Call the consumer API with a raw key to see permissions enforced.</p>
+                    </div>
+                </div>
+
+                <label class="field">
+                    <span class="field__label">Raw API key</span>
+                    <input type="text" id="test-key" placeholder="kv_live_..." spellcheck="false" autocomplete="off">
+                    <span class="field__hint">Paste a key you saved at creation. It is sent only to this server.</span>
+                </label>
+
+                <div class="btn-row">
+                    <button class="btn btn--ghost btn--sm" data-test="GET" data-path="/api/protected/hello">GET /hello</button>
+                    <button class="btn btn--ghost btn--sm" data-test="GET" data-path="/api/protected/read">GET /read</button>
+                    <button class="btn btn--ghost btn--sm" data-test="POST" data-path="/api/protected/write">POST /write</button>
+                </div>
+
+                <pre id="test-output" class="output" hidden></pre>
+            </section>
+        </div>
+    </main>
+</div>
+
+<!-- ========================= Create key dialog ========================= -->
+<dialog id="create-dialog" class="dialog">
+    <form id="create-form" class="form" novalidate>
+        <h2 class="dialog__title">New API key</h2>
+
+        <label class="field">
+            <span class="field__label">Name</span>
+            <input type="text" name="name" required maxlength="100" placeholder="Production worker">
+        </label>
+
+        <fieldset class="field">
+            <legend class="field__label">Permissions</legend>
+            <label class="check"><input type="checkbox" name="permissions" value="READ" checked> <span>READ</span></label>
+            <label class="check"><input type="checkbox" name="permissions" value="WRITE"> <span>WRITE</span></label>
+            <span class="field__hint">Defaults to READ if none selected.</span>
+        </fieldset>
+
+        <label class="field">
+            <span class="field__label">Expires <span class="muted">(optional)</span></span>
+            <input type="datetime-local" name="expiresAt">
+            <span class="field__hint">Leave empty for a key that never expires.</span>
+        </label>
+
+        <p id="create-error" class="alert alert--error" role="alert" hidden></p>
+
+        <div class="dialog__actions">
+            <button type="button" class="btn btn--ghost" data-close-dialog>Cancel</button>
+            <button type="submit" class="btn btn--primary">Create key</button>
+        </div>
+    </form>
+</dialog>
+
+<!-- ======================= One-time reveal dialog ======================= -->
+<dialog id="reveal-dialog" class="dialog">
+    <h2 class="dialog__title" id="reveal-title">Your new API key</h2>
+    <p class="alert alert--warn">
+        This is the only time this key will be shown. Copy it now &mdash; the server keeps
+        only a SHA-256 hash and cannot recover it.
+    </p>
+    <div class="secret">
+        <code id="reveal-key"></code>
+        <button id="copy-key" class="btn btn--primary btn--sm">Copy</button>
+    </div>
+    <div class="dialog__actions">
+        <button type="button" class="btn btn--ghost" data-close-dialog>I have saved it</button>
+    </div>
+</dialog>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
