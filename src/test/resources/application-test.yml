@@ -1,0 +1,22 @@
+# Test profile: an in-memory H2 database in PostgreSQL compatibility mode, so the
+# suite runs on any machine (and in CI) without a local PostgreSQL instance.
+spring:
+  datasource:
+    url: jdbc:h2:mem:keyvault_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    open-in-view: false
+
+jwt:
+  # Test-only signing secret. Never used outside the test profile.
+  secret: keyvault-test-signing-secret-do-not-use-in-production-0123456789
+  expiration: 86400000
+
+logging:
+  level:
+    com.keyvault: WARN

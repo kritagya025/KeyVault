@@ -16,11 +16,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.Set;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -31,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 @Transactional
 public class ApiKeyAuthenticationIntegrationTest {
 
@@ -139,7 +142,7 @@ public class ApiKeyAuthenticationIntegrationTest {
                 .keyHash(keyHash)
                 .user(user)
                 .expiresAt(LocalDateTime.now().minusDays(1))
-                .permissions(Set.of(Permission.READ))
+                .permissions(EnumSet.of(Permission.READ))
                 .build();
 
         apiKeyRepository.save(expiredKey);

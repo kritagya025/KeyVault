@@ -5,6 +5,12 @@ target/
 *.ear
 *.class
 
+# Maven wrapper jar is intentionally tracked
+!.mvn/wrapper/maven-wrapper.jar
+
+# Local environment overrides (never commit real credentials)
+.env
+
 # Eclipse / IntelliJ / VS Code
 .idea/
 *.iml

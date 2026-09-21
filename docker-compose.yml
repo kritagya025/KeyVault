@@ -1,0 +1,47 @@
+# Brings up PostgreSQL and KeyVault together:
+#   cp .env.example .env    # optional, for a persistent JWT secret
+#   docker compose up --build
+#
+# Swagger UI is then available at http://localhost:8080/swagger-ui.html
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: keyvault-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-keyvault_db}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - keyvault-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${POSTGRES_DB:-keyvault_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+    container_name: keyvault-app
+    # Waiting for the healthcheck avoids the app racing an uninitialised database.
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-keyvault_db}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      # Unset, the app generates an ephemeral signing key and logs a warning:
+      # every issued token dies with the container. Set JWT_SECRET in .env to persist sessions.
+      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    restart: unless-stopped
+
+volumes:
+  keyvault-db-data:

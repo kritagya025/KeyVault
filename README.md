@@ -1,5 +1,10 @@
 # KeyVault — API Key Management & Access Control Platform
 
+[![CI](https://github.com/kritagya025/KeyVault/actions/workflows/ci.yml/badge.svg)](https://github.com/kritagya025/KeyVault/actions/workflows/ci.yml)
+[![Java 17](https://img.shields.io/badge/Java-17-orange)](https://adoptium.net/)
+[![Spring Boot 3.4.2](https://img.shields.io/badge/Spring%20Boot-3.4.2-brightgreen)](https://spring.io/projects/spring-boot)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+
 KeyVault is a lightweight, secure Spring Boot 3 backend service built for API Key Management, Dual Authentication (JWT & `X-API-Key`), One-Way Hashed Key Persistence, Granular Access Control (`READ`, `WRITE`), and Real-Time API Usage Tracking.
 
 ---
@@ -92,6 +97,12 @@ Revoke Key (PATCH)   Key Expires (expiresAt < now)
                  (New raw key issued, new hash stored)
 ```
 
+### Regeneration Semantics
+- Regeneration replaces the stored hash, so the previous raw key stops authenticating immediately.
+- Regenerating an `ACTIVE` key leaves its expiry untouched.
+- Regenerating an `EXPIRED` key re-anchors its original validity window from the moment of regeneration, returning the key to `ACTIVE`. A key created with a 30-day window therefore gets another 30 days, and the newly issued raw key is usable right away rather than being born expired.
+- Regenerating a `REVOKED` key is rejected with `400 Bad Request`. Revocation is terminal.
+
 ---
 
 ## API Usage Tracking Flow
@@ -112,34 +123,80 @@ X-API-Key Request -> Authenticate Key -> Check Permissions -> Controller -> ApiU
 - **Java**: 17
 - **Framework**: Spring Boot 3.4.2 (Spring Web, Spring Data JPA, Spring Security, Validation)
 - **Documentation**: Springdoc OpenAPI 2.8.4 (Swagger UI)
-- **Database**: PostgreSQL
-- **Testing**: JUnit 5, MockMvc, Spring Boot Test
+- **Database**: PostgreSQL (runtime), H2 in PostgreSQL compatibility mode (tests)
+- **Testing**: JUnit 5, Mockito, MockMvc, Spring Boot Test
+- **Build & Deploy**: Maven Wrapper, multi-stage Docker build, Docker Compose, GitHub Actions
 - **Utilities**: Lombok, JJWT 0.12.6, BCrypt, SHA-256
+
+---
+
+## Configuration
+
+Every setting is read from an environment variable with a development-friendly default. No credentials or signing secrets are committed to this repository.
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `DB_URL` | `jdbc:postgresql://localhost:5432/keyvault_db` | JDBC connection string. |
+| `DB_USERNAME` | `postgres` | Database user. |
+| `DB_PASSWORD` | `postgres` | Database password. |
+| `JWT_SECRET` | *(empty)* | HMAC signing secret, minimum 32 bytes. See the note below. |
+| `JWT_EXPIRATION` | `86400000` | Access token lifetime in milliseconds (24 hours). |
+| `SERVER_PORT` | `8080` | HTTP port. |
+| `JPA_DDL_AUTO` | `update` | Hibernate schema management strategy. |
+| `LOG_LEVEL` | `INFO` | Log level for the `com.keyvault` package. |
+
+**About `JWT_SECRET`**: when it is unset, the application generates a random signing key at startup and logs a warning. Local development works out of the box, but every issued token is invalidated on restart. Set a real secret in any deployed environment:
+
+```bash
+export JWT_SECRET="$(openssl rand -hex 32)"
+```
+
+A secret shorter than 32 bytes is rejected at startup rather than silently weakening token signatures. Copy `.env.example` to `.env` to keep local overrides out of version control.
 
 ---
 
 ## Running Locally
 
-### 1. Configure PostgreSQL
+### Option A: Docker Compose (recommended)
+
+Brings up PostgreSQL and KeyVault together, with no local Java or database setup:
+
+```bash
+cp .env.example .env      # optional, for a persistent JWT secret
+docker compose up --build
+```
+
+The API is then available at `http://localhost:8080`. Tear it down with `docker compose down` (add `-v` to drop the database volume).
+
+### Option B: Maven Wrapper
+
+#### 1. Configure PostgreSQL
 Ensure PostgreSQL is running locally on port `5432` with database `keyvault_db`:
 ```sql
 CREATE DATABASE keyvault_db;
 ```
 
-### 2. Set Environment Variables (Optional)
+#### 2. Set Environment Variables
 ```bash
 export DB_URL="jdbc:postgresql://localhost:5432/keyvault_db"
 export DB_USERNAME="postgres"
 export DB_PASSWORD="your_password"
+export JWT_SECRET="$(openssl rand -hex 32)"
 ```
 
-### 3. Build and Run Application
+#### 3. Build and Run Application
+The wrapper pins the Maven version, so no local Maven install is required (use `mvnw.cmd` on Windows):
 ```bash
-mvn clean package -DskipTests
+./mvnw clean package -DskipTests
 java -jar target/keyvault-0.0.1-SNAPSHOT.jar
 ```
 
-### 4. Interactive API Documentation (Swagger UI)
+Or run it directly during development:
+```bash
+./mvnw spring-boot:run
+```
+
+### Interactive API Documentation (Swagger UI)
 Access the interactive OpenAPI interface at:
 `http://localhost:8080/swagger-ui.html`
 
@@ -214,6 +271,29 @@ curl -X GET http://localhost:8080/api/protected/read \
 
 ---
 
+## Testing
+
+The suite runs against an in-memory H2 database in PostgreSQL compatibility mode, so it needs no local PostgreSQL instance and no Docker:
+
+```bash
+./mvnw test
+```
+
+48 tests across two layers:
+
+| Layer | Coverage |
+| :--- | :--- |
+| **Unit** (`ApiKeyServiceTest`, `AuthServiceTest`, `ApiUsageServiceTest`, `ApiKeyGeneratorTest`, `JwtUtilsTest`) | Key hashing and SHA-256 digests, permission defaulting, expiry validation, revocation idempotency, regeneration windows, BCrypt password handling, JWT signing, expiry and secret validation. |
+| **Integration** (`*IntegrationTest`) | Full request path through the Spring Security filter chain: registration and login, dual authentication, `READ`/`WRITE` permission enforcement, key lifecycle, ownership isolation, usage tracking, and key regeneration. |
+
+The `test` profile lives in `src/test/resources/application-test.yml`. Every test class is annotated `@ActiveProfiles("test")`, so no production configuration is ever loaded during a test run.
+
+### Continuous Integration
+
+`.github/workflows/ci.yml` runs the full build on every push and pull request to `main`, then builds the container image. Because tests use H2, CI requires no database service container.
+
+---
+
 ## Security Summary
 
 1. **BCrypt Password Hashing**: User passwords are encrypted using BCrypt prior to persistence.
@@ -221,3 +301,11 @@ curl -X GET http://localhost:8080/api/protected/read \
 3. **One-Time Key Emission**: Raw keys (`kv_live_...`) are returned only once upon creation/regeneration.
 4. **Ownership Protection**: Cross-user access returns `404 Not Found` to prevent resource enumeration.
 5. **No Secret Leaks**: Passwords, raw keys, and key hashes are omitted from JSON outputs and system logs.
+6. **No Committed Credentials**: Database credentials and the JWT signing secret are supplied through environment variables. The repository ships defaults for local development only, and the application refuses a signing secret weaker than 256 bits.
+7. **Unprivileged Container**: The Docker image runs as a non-root user and contains only a JRE and the application jar.
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE).

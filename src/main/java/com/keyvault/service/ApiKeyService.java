@@ -13,7 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
@@ -24,6 +26,12 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class ApiKeyService {
+
+    /**
+     * Validity window granted to a regenerated key whose original window
+     * cannot be derived (defensive fallback for anomalous stored data).
+     */
+    private static final Duration FALLBACK_REGENERATED_LIFETIME = Duration.ofDays(30);
 
     private final ApiKeyRepository apiKeyRepository;
     private final ApiKeyGenerator apiKeyGenerator;
@@ -42,10 +50,10 @@ public class ApiKeyService {
             throw new IllegalArgumentException("Expiration date must be in the future");
         }
 
-        Set<Permission> assignedPermissions = request.getPermissions();
-        if (assignedPermissions == null || assignedPermissions.isEmpty()) {
-            assignedPermissions = Set.of(Permission.READ);
-        }
+        Set<Permission> requestedPermissions = request.getPermissions();
+        Set<Permission> assignedPermissions = (requestedPermissions == null || requestedPermissions.isEmpty())
+                ? EnumSet.of(Permission.READ)
+                : EnumSet.copyOf(requestedPermissions);
 
         String rawApiKey = apiKeyGenerator.generateRawApiKey();
         String keyHash = apiKeyGenerator.hashApiKey(rawApiKey);
@@ -61,15 +69,7 @@ public class ApiKeyService {
 
         ApiKey savedKey = apiKeyRepository.save(apiKey);
 
-        return CreateApiKeyResponse.builder()
-                .id(savedKey.getId())
-                .name(savedKey.getName())
-                .apiKey(rawApiKey)
-                .expiresAt(savedKey.getExpiresAt())
-                .createdAt(savedKey.getCreatedAt())
-                .revoked(savedKey.isRevoked())
-                .permissions(savedKey.getPermissions())
-                .build();
+        return toCreateResponse(savedKey, rawApiKey);
     }
 
     @Transactional(readOnly = true)
@@ -96,6 +96,17 @@ public class ApiKeyService {
         return ApiKeyResponse.fromEntity(apiKey);
     }
 
+    /**
+     * Issues a fresh raw key for an existing ACTIVE or EXPIRED key, replacing the stored hash.
+     * An EXPIRED key is brought back to ACTIVE by re-anchoring its original validity window
+     * from the moment of regeneration, so the newly issued key is immediately usable.
+     * Keys without an expiry, and keys that have not expired yet, keep their current window.
+     *
+     * @param user the key owner
+     * @param id the API key id
+     * @return creation response with the new raw key emitted once
+     * @throws IllegalStateException if the key has been revoked
+     */
     @Transactional
     public CreateApiKeyResponse regenerateApiKey(User user, Long id) {
         ApiKey apiKey = findApiKeyAndVerifyOwnership(user, id);
@@ -109,16 +120,36 @@ public class ApiKeyService {
         String newKeyHash = apiKeyGenerator.hashApiKey(newRawApiKey);
 
         apiKey.setKeyHash(newKeyHash);
+        if ("EXPIRED".equals(currentStatus)) {
+            apiKey.setExpiresAt(LocalDateTime.now().plus(originalLifetimeOf(apiKey)));
+        }
+
         ApiKey savedKey = apiKeyRepository.save(apiKey);
 
+        return toCreateResponse(savedKey, newRawApiKey);
+    }
+
+    /**
+     * Derives how long a key was originally valid for, falling back to a fixed
+     * window when the stored timestamps do not yield a positive duration.
+     */
+    private Duration originalLifetimeOf(ApiKey apiKey) {
+        if (apiKey.getCreatedAt() == null || apiKey.getExpiresAt() == null) {
+            return FALLBACK_REGENERATED_LIFETIME;
+        }
+        Duration lifetime = Duration.between(apiKey.getCreatedAt(), apiKey.getExpiresAt());
+        return lifetime.isNegative() || lifetime.isZero() ? FALLBACK_REGENERATED_LIFETIME : lifetime;
+    }
+
+    private CreateApiKeyResponse toCreateResponse(ApiKey apiKey, String rawApiKey) {
         return CreateApiKeyResponse.builder()
-                .id(savedKey.getId())
-                .name(savedKey.getName())
-                .apiKey(newRawApiKey)
-                .expiresAt(savedKey.getExpiresAt())
-                .createdAt(savedKey.getCreatedAt())
-                .revoked(savedKey.isRevoked())
-                .permissions(savedKey.getPermissions())
+                .id(apiKey.getId())
+                .name(apiKey.getName())
+                .apiKey(rawApiKey)
+                .expiresAt(apiKey.getExpiresAt())
+                .createdAt(apiKey.getCreatedAt())
+                .revoked(apiKey.isRevoked())
+                .permissions(apiKey.getPermissions())
                 .build();
     }
 

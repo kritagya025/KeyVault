@@ -1,0 +1,31 @@
+# Build output — the image builds the jar itself
+target/
+
+# Version control and CI
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# Local environment and secrets
+.env
+
+# IDE and editor state
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+.editorconfig
+
+# Docs and compose files are not needed inside the build context
+README.md
+LICENSE
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# OS noise
+.DS_Store
+Thumbs.db

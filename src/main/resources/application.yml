@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 spring:
   application:
@@ -7,14 +7,21 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/keyvault_db}
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:kritagya}
+    password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${JPA_DDL_AUTO:update}
     show-sql: false
     open-in-view: false
 
 jwt:
-  secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
-  expiration: 86400000 # 24 hours in milliseconds
+  # Left empty on purpose: no signing secret is committed to this repository.
+  # Unset, the application generates an ephemeral key at startup and logs a warning.
+  # Set JWT_SECRET (>= 32 bytes, e.g. `openssl rand -hex 32`) in every deployed environment.
+  secret: ${JWT_SECRET:}
+  expiration: ${JWT_EXPIRATION:86400000} # 24 hours in milliseconds
+
+logging:
+  level:
+    com.keyvault: ${LOG_LEVEL:INFO}
