@@ -99,6 +99,38 @@ public class ApiKeyService {
     }
 
     /**
+     * Updates metadata (name and/or permissions) for an existing active or expired API key.
+     * Revoked keys cannot be updated.
+     *
+     * @param user the key owner
+     * @param id the API key id
+     * @param request update request containing new name or permissions
+     * @return updated key response
+     */
+    @Transactional
+    public ApiKeyResponse updateApiKey(User user, Long id, com.keyvault.dto.UpdateApiKeyRequest request) {
+        ApiKey apiKey = findApiKeyAndVerifyOwnership(user, id);
+
+        if (apiKey.isRevoked()) {
+            throw new IllegalStateException("Cannot update a revoked API key");
+        }
+
+        if (request.getName() != null && !request.getName().trim().isEmpty()) {
+            apiKey.setName(request.getName().trim());
+        }
+
+        if (request.getPermissions() != null) {
+            if (request.getPermissions().isEmpty()) {
+                throw new IllegalArgumentException("API key must have at least one permission");
+            }
+            apiKey.setPermissions(EnumSet.copyOf(request.getPermissions()));
+        }
+
+        ApiKey updated = apiKeyRepository.save(apiKey);
+        return ApiKeyResponse.fromEntity(updated);
+    }
+
+    /**
      * Issues a fresh raw key for an existing ACTIVE or EXPIRED key, replacing the stored hash.
      * An EXPIRED key is brought back to ACTIVE by re-anchoring its original validity window
      * from the moment of regeneration, so the newly issued key is immediately usable.

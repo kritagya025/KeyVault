@@ -199,4 +199,41 @@ class ApiKeyServiceTest {
         assertNotEquals(originalHash, active.getKeyHash());
         assertEquals(apiKeyGenerator.hashApiKey(response.getApiKey()), active.getKeyHash());
     }
+
+    @Test
+    @DisplayName("Updating key modifies its name and permissions")
+    void updateApiKeyUpdatesNameAndPermissions() {
+        ApiKey key = storedKey(16L, owner, LocalDateTime.now(), null, false);
+        when(apiKeyRepository.findById(16L)).thenReturn(Optional.of(key));
+        stubSaveEchoingArgument();
+
+        ApiKeyResponse response = apiKeyService.updateApiKey(owner, 16L,
+                com.keyvault.dto.UpdateApiKeyRequest.builder()
+                        .name("Renamed Key")
+                        .permissions(Set.of(Permission.READ, Permission.WRITE))
+                        .build());
+
+        assertEquals("Renamed Key", response.getName());
+        assertEquals(Set.of(Permission.READ, Permission.WRITE), response.getPermissions());
+    }
+
+    @Test
+    @DisplayName("Updating a revoked key is rejected")
+    void updateApiKeyRejectsRevokedKey() {
+        ApiKey revoked = storedKey(17L, owner, LocalDateTime.now(), null, true);
+        when(apiKeyRepository.findById(17L)).thenReturn(Optional.of(revoked));
+
+        assertThrows(IllegalStateException.class, () -> apiKeyService.updateApiKey(owner, 17L,
+                com.keyvault.dto.UpdateApiKeyRequest.builder().name("New Name").build()));
+    }
+
+    @Test
+    @DisplayName("Updating permissions with an empty set is rejected")
+    void updateApiKeyRejectsEmptyPermissions() {
+        ApiKey key = storedKey(18L, owner, LocalDateTime.now(), null, false);
+        when(apiKeyRepository.findById(18L)).thenReturn(Optional.of(key));
+
+        assertThrows(IllegalArgumentException.class, () -> apiKeyService.updateApiKey(owner, 18L,
+                com.keyvault.dto.UpdateApiKeyRequest.builder().permissions(Set.of()).build()));
+    }
 }

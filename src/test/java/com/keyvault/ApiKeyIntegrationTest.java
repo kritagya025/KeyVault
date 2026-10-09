@@ -87,6 +87,21 @@ public class ApiKeyIntegrationTest {
                 .andExpect(jsonPath("$.id").value(keyId))
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
 
+        // Test updating name and permissions
+        com.keyvault.dto.UpdateApiKeyRequest updateReq = com.keyvault.dto.UpdateApiKeyRequest.builder()
+                .name("Updated Name")
+                .permissions(Set.of(Permission.READ))
+                .build();
+
+        mockMvc.perform(patch("/api/keys/" + keyId)
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Updated Name"))
+                .andExpect(jsonPath("$.permissions[0]").value("READ"))
+                .andExpect(jsonPath("$.permissions.length()").value(1));
+
         mockMvc.perform(patch("/api/keys/" + keyId + "/revoke")
                         .header("Authorization", "Bearer " + jwtToken))
                 .andExpect(status().isOk())

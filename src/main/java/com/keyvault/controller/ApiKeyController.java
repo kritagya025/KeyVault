@@ -69,6 +69,18 @@ public class ApiKeyController {
         return ResponseEntity.ok(response);
     }
 
+    @PatchMapping("/{id}")
+    @Operation(summary = "Update API Key", description = "Update the name or permissions of an active or expired API key. Revoked keys cannot be updated.")
+    public ResponseEntity<ApiKeyResponse> updateApiKey(
+            Authentication authentication,
+            @PathVariable Long id,
+            @Valid @RequestBody com.keyvault.dto.UpdateApiKeyRequest request
+    ) {
+        User user = getUser(authentication);
+        ApiKeyResponse response = apiKeyService.updateApiKey(user, id, request);
+        return ResponseEntity.ok(response);
+    }
+
     @PatchMapping("/{id}/revoke")
     @Operation(summary = "Revoke API Key", description = "Revoke an API key immediately. Revoked keys cannot be regenerated or used for authentication.")
     public ResponseEntity<ApiKeyResponse> revokeApiKey(
