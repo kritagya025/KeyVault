@@ -53,4 +53,18 @@ public class ApiKeyGenerator {
             throw new RuntimeException("SHA-256 algorithm not available", e);
         }
     }
+
+    /**
+     * Creates a masked representation of a raw API key for safe display (e.g. kv_live_••••••••abcd).
+     *
+     * @param rawKey the raw API key to mask
+     * @return masked key string
+     */
+    public String maskApiKey(String rawKey) {
+        if (rawKey == null || rawKey.length() < 12) {
+            return PREFIX + "••••••••";
+        }
+        String suffix = rawKey.substring(rawKey.length() - 4);
+        return PREFIX + "••••••••" + suffix;
+    }
 }

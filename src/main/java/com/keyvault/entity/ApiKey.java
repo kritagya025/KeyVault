@@ -43,6 +43,9 @@ public class ApiKey {
     @Column(name = "key_hash", nullable = false, unique = true)
     private String keyHash;
 
+    @Column(name = "masked_key")
+    private String maskedKey;
+
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 

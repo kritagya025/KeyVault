@@ -69,4 +69,22 @@ class ApiKeyGeneratorTest {
         assertEquals(64, hash.length(), "A digest with a leading zero byte must still be 64 characters");
         assertTrue(hash.startsWith("00"));
     }
+
+    @Test
+    @DisplayName("Masking hides middle bytes and preserves kv_live_ prefix and last 4 characters")
+    void masksRawApiKeyCorrectly() {
+        String rawKey = generator.generateRawApiKey();
+        String masked = generator.maskApiKey(rawKey);
+
+        assertTrue(masked.startsWith("kv_live_••••••••"));
+        assertTrue(masked.endsWith(rawKey.substring(rawKey.length() - 4)));
+        assertNotEquals(rawKey, masked);
+    }
+
+    @Test
+    @DisplayName("Masking handles short or null inputs defensively")
+    void masksShortOrNullKeyDefensively() {
+        assertEquals("kv_live_••••••••", generator.maskApiKey(null));
+        assertEquals("kv_live_••••••••", generator.maskApiKey("short"));
+    }
 }

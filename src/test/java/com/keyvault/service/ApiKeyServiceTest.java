@@ -92,6 +92,8 @@ class ApiKeyServiceTest {
         assertTrue(response.getApiKey().startsWith("kv_live_"));
         assertNotEquals(response.getApiKey(), persisted.getKeyHash());
         assertEquals(apiKeyGenerator.hashApiKey(response.getApiKey()), persisted.getKeyHash());
+        assertEquals(response.getMaskedKey(), persisted.getMaskedKey());
+        assertTrue(response.getMaskedKey().startsWith("kv_live_••••••••"));
         assertEquals(Set.of(Permission.WRITE), persisted.getPermissions());
     }
 

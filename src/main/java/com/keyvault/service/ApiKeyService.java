@@ -57,10 +57,12 @@ public class ApiKeyService {
 
         String rawApiKey = apiKeyGenerator.generateRawApiKey();
         String keyHash = apiKeyGenerator.hashApiKey(rawApiKey);
+        String maskedKey = apiKeyGenerator.maskApiKey(rawApiKey);
 
         ApiKey apiKey = ApiKey.builder()
                 .name(request.getName())
                 .keyHash(keyHash)
+                .maskedKey(maskedKey)
                 .expiresAt(request.getExpiresAt())
                 .revoked(false)
                 .user(user)
@@ -118,8 +120,10 @@ public class ApiKeyService {
 
         String newRawApiKey = apiKeyGenerator.generateRawApiKey();
         String newKeyHash = apiKeyGenerator.hashApiKey(newRawApiKey);
+        String newMaskedKey = apiKeyGenerator.maskApiKey(newRawApiKey);
 
         apiKey.setKeyHash(newKeyHash);
+        apiKey.setMaskedKey(newMaskedKey);
         if ("EXPIRED".equals(currentStatus)) {
             apiKey.setExpiresAt(LocalDateTime.now().plus(originalLifetimeOf(apiKey)));
         }
@@ -146,6 +150,7 @@ public class ApiKeyService {
                 .id(apiKey.getId())
                 .name(apiKey.getName())
                 .apiKey(rawApiKey)
+                .maskedKey(apiKey.getMaskedKey())
                 .expiresAt(apiKey.getExpiresAt())
                 .createdAt(apiKey.getCreatedAt())
                 .revoked(apiKey.isRevoked())

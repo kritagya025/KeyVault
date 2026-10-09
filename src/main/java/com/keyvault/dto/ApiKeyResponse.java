@@ -18,6 +18,7 @@ public class ApiKeyResponse {
 
     private Long id;
     private String name;
+    private String maskedKey;
     private LocalDateTime expiresAt;
     private LocalDateTime createdAt;
     private boolean revoked;
@@ -28,6 +29,7 @@ public class ApiKeyResponse {
         return ApiKeyResponse.builder()
                 .id(apiKey.getId())
                 .name(apiKey.getName())
+                .maskedKey(apiKey.getMaskedKey())
                 .expiresAt(apiKey.getExpiresAt())
                 .createdAt(apiKey.getCreatedAt())
                 .revoked(apiKey.isRevoked())
