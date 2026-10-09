@@ -99,5 +99,17 @@ public class ApiUsageIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.lastUsedAt").isNotEmpty())
                 .andExpect(jsonPath("$.maskedKey").isNotEmpty());
+
+        mockMvc.perform(get("/api/keys/" + keyId + "/usage/logs?page=0&size=10")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content.length()").value(2));
+
+        mockMvc.perform(get("/api/keys/" + keyId + "/usage/logs?page=0&size=10&successful=true")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].statusCode").value(200));
     }
 }

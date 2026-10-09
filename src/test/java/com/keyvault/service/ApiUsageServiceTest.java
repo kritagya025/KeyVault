@@ -123,4 +123,33 @@ class ApiUsageServiceTest {
 
         assertThrows(ResourceNotFoundException.class, () -> apiUsageService.getUsageStats(owner, 404L));
     }
+
+    @Test
+    @DisplayName("Paginated usage returns paged summaries with or without filtering")
+    void getPaginatedUsageReturnsPagedResponses() {
+        when(apiKeyRepository.findById(KEY_ID)).thenReturn(Optional.of(ownedKey));
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        ApiUsage usage = ApiUsage.builder()
+                .apiKey(ownedKey)
+                .endpoint("/api/protected/read")
+                .httpMethod("GET")
+                .statusCode(200)
+                .successful(true)
+                .timestamp(LocalDateTime.now())
+                .build();
+        org.springframework.data.domain.Page<ApiUsage> pagedResult = new org.springframework.data.domain.PageImpl<>(List.of(usage), pageable, 1);
+
+        when(apiUsageRepository.findByApiKeyId(KEY_ID, pageable)).thenReturn(pagedResult);
+
+        org.springframework.data.domain.Page<ApiUsageSummaryResponse> result =
+                apiUsageService.getPaginatedUsage(owner, KEY_ID, null, pageable);
+
+        assertEquals(1, result.getTotalElements());
+        assertEquals("/api/protected/read", result.getContent().get(0).getEndpoint());
+
+        when(apiUsageRepository.findByApiKeyIdAndSuccessful(KEY_ID, true, pageable)).thenReturn(pagedResult);
+        org.springframework.data.domain.Page<ApiUsageSummaryResponse> filteredResult =
+                apiUsageService.getPaginatedUsage(owner, KEY_ID, true, pageable);
+        assertEquals(1, filteredResult.getTotalElements());
+    }
 }

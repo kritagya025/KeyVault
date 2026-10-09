@@ -20,6 +20,10 @@ public interface ApiUsageRepository extends JpaRepository<ApiUsage, Long> {
 
     List<ApiUsage> findTop10ByApiKeyIdOrderByTimestampDesc(Long apiKeyId);
 
+    org.springframework.data.domain.Page<ApiUsage> findByApiKeyId(Long apiKeyId, org.springframework.data.domain.Pageable pageable);
+
+    org.springframework.data.domain.Page<ApiUsage> findByApiKeyIdAndSuccessful(Long apiKeyId, boolean successful, org.springframework.data.domain.Pageable pageable);
+
     @Modifying
     @Query("DELETE FROM ApiUsage u WHERE u.apiKey.id = :apiKeyId")
     void deleteByApiKeyId(@Param("apiKeyId") Long apiKeyId);

@@ -136,6 +136,21 @@ public class ApiKeyController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/{id}/usage/logs")
+    @Operation(summary = "Get Paginated API Key Usage Logs", description = "Query paginated usage logs for an API key, with optional filtering by success status.")
+    public ResponseEntity<org.springframework.data.domain.Page<ApiUsageSummaryResponse>> getPaginatedUsage(
+            Authentication authentication,
+            @PathVariable Long id,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Boolean successful,
+            @org.springdoc.core.annotations.ParameterObject
+            @org.springframework.data.web.PageableDefault(size = 20, sort = "timestamp", direction = org.springframework.data.domain.Sort.Direction.DESC)
+            org.springframework.data.domain.Pageable pageable
+    ) {
+        User user = getUser(authentication);
+        org.springframework.data.domain.Page<ApiUsageSummaryResponse> page = apiUsageService.getPaginatedUsage(user, id, successful, pageable);
+        return ResponseEntity.ok(page);
+    }
+
     private User getUser(Authentication authentication) {
         return userRepository.findByEmail(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));

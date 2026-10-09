@@ -66,6 +66,25 @@ public class ApiUsageService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<ApiUsageSummaryResponse> getPaginatedUsage(
+            User user,
+            Long apiKeyId,
+            Boolean successful,
+            org.springframework.data.domain.Pageable pageable
+    ) {
+        verifyApiKeyOwnership(user, apiKeyId);
+
+        org.springframework.data.domain.Page<ApiUsage> page;
+        if (successful != null) {
+            page = apiUsageRepository.findByApiKeyIdAndSuccessful(apiKeyId, successful, pageable);
+        } else {
+            page = apiUsageRepository.findByApiKeyId(apiKeyId, pageable);
+        }
+
+        return page.map(ApiUsageSummaryResponse::fromEntity);
+    }
+
     private void verifyApiKeyOwnership(User user, Long apiKeyId) {
         ApiKey apiKey = apiKeyRepository.findById(apiKeyId)
                 .orElseThrow(() -> new ResourceNotFoundException("API key not found with id: " + apiKeyId));
