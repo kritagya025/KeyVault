@@ -126,4 +126,48 @@ class AuthServiceTest {
 
         assertThrows(BadCredentialsException.class, () -> authService.login(request));
     }
+
+    @Test
+    @DisplayName("Updating profile updates user name")
+    void updateProfileUpdatesName() {
+        User user = existingUser();
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        com.keyvault.dto.UserResponse response = authService.updateProfile(EMAIL,
+                com.keyvault.dto.UpdateProfileRequest.builder().name("Updated Member").build());
+
+        assertEquals("Updated Member", response.getName());
+    }
+
+    @Test
+    @DisplayName("Changing password with correct current password updates hash")
+    void changePasswordUpdatesHash() {
+        User user = existingUser();
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        authService.changePassword(EMAIL,
+                com.keyvault.dto.ChangePasswordRequest.builder()
+                        .currentPassword(RAW_PASSWORD)
+                        .newPassword("brandNewPassword123")
+                        .build());
+
+        assertTrue(passwordEncoder.matches("brandNewPassword123", user.getPassword()));
+    }
+
+    @Test
+    @DisplayName("Changing password with wrong current password throws BadCredentialsException")
+    void changePasswordRejectsWrongCurrentPassword() {
+        User user = existingUser();
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+
+        com.keyvault.dto.ChangePasswordRequest request = com.keyvault.dto.ChangePasswordRequest.builder()
+                .currentPassword("wrongPassword")
+                .newPassword("brandNewPassword123")
+                .build();
+
+        assertThrows(BadCredentialsException.class, () -> authService.changePassword(EMAIL, request));
+        verify(userRepository, never()).save(any(User.class));
+    }
 }

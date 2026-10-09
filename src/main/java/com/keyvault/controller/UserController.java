@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final com.keyvault.service.AuthService authService;
 
     @GetMapping("/me")
     @Operation(summary = "Get Current User Profile", description = "Retrieve details of the currently authenticated JWT user.")
@@ -29,5 +30,25 @@ public class UserController {
         User user = userRepository.findByEmail(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         return ResponseEntity.ok(UserResponse.fromEntity(user));
+    }
+
+    @org.springframework.web.bind.annotation.PatchMapping("/me")
+    @Operation(summary = "Update User Profile", description = "Update the profile information (e.g. name) of the currently authenticated user.")
+    public ResponseEntity<UserResponse> updateProfile(
+            Authentication authentication,
+            @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody com.keyvault.dto.UpdateProfileRequest request
+    ) {
+        UserResponse response = authService.updateProfile(authentication.getName(), request);
+        return ResponseEntity.ok(response);
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/me/password")
+    @Operation(summary = "Change Password", description = "Change the password for the currently authenticated user.")
+    public ResponseEntity<java.util.Map<String, String>> changePassword(
+            Authentication authentication,
+            @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody com.keyvault.dto.ChangePasswordRequest request
+    ) {
+        authService.changePassword(authentication.getName(), request);
+        return ResponseEntity.ok(java.util.Map.of("message", "Password changed successfully"));
     }
 }

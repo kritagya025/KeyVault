@@ -55,4 +55,25 @@ public class AuthService {
                 .tokenType("Bearer")
                 .build();
     }
+
+    public com.keyvault.dto.UserResponse updateProfile(String email, com.keyvault.dto.UpdateProfileRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new com.keyvault.exception.ResourceNotFoundException("User not found"));
+
+        user.setName(request.getName().trim());
+        User updated = userRepository.save(user);
+        return com.keyvault.dto.UserResponse.fromEntity(updated);
+    }
+
+    public void changePassword(String email, com.keyvault.dto.ChangePasswordRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new com.keyvault.exception.ResourceNotFoundException("User not found"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new BadCredentialsException("Current password does not match");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
 }
