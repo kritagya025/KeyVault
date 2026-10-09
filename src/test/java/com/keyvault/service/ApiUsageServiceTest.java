@@ -68,6 +68,8 @@ class ApiUsageServiceTest {
         assertEquals("POST", persisted.getHttpMethod());
         assertEquals(403, persisted.getStatusCode());
         assertFalse(persisted.isSuccessful());
+        verify(apiKeyRepository).updateLastUsedAt(org.mockito.ArgumentMatchers.eq(KEY_ID), org.mockito.ArgumentMatchers.any(LocalDateTime.class));
+        org.junit.jupiter.api.Assertions.assertNotNull(ownedKey.getLastUsedAt());
     }
 
     @Test

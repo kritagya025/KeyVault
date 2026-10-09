@@ -21,6 +21,7 @@ public class ApiKeyResponse {
     private String maskedKey;
     private LocalDateTime expiresAt;
     private LocalDateTime createdAt;
+    private LocalDateTime lastUsedAt;
     private boolean revoked;
     private String status;
     private Set<Permission> permissions;
@@ -32,6 +33,7 @@ public class ApiKeyResponse {
                 .maskedKey(apiKey.getMaskedKey())
                 .expiresAt(apiKey.getExpiresAt())
                 .createdAt(apiKey.getCreatedAt())
+                .lastUsedAt(apiKey.getLastUsedAt())
                 .revoked(apiKey.isRevoked())
                 .status(calculateStatus(apiKey))
                 .permissions(apiKey.getPermissions())

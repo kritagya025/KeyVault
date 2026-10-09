@@ -93,5 +93,11 @@ public class ApiUsageIntegrationTest {
                         .header("Authorization", "Bearer " + jwtToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2));
+
+        mockMvc.perform(get("/api/keys/" + keyId)
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.lastUsedAt").isNotEmpty())
+                .andExpect(jsonPath("$.maskedKey").isNotEmpty());
     }
 }

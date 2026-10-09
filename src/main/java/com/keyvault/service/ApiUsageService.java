@@ -32,6 +32,12 @@ public class ApiUsageService {
                 .build();
 
         apiUsageRepository.save(usage);
+
+        if (apiKey.getId() != null) {
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            apiKeyRepository.updateLastUsedAt(apiKey.getId(), now);
+            apiKey.setLastUsedAt(now);
+        }
     }
 
     @Transactional(readOnly = true)

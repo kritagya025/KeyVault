@@ -46,6 +46,9 @@ public class ApiKey {
     @Column(name = "masked_key")
     private String maskedKey;
 
+    @Column(name = "last_used_at")
+    private LocalDateTime lastUsedAt;
+
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 

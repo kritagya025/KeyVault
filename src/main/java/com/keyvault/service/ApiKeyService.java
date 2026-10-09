@@ -153,6 +153,7 @@ public class ApiKeyService {
                 .maskedKey(apiKey.getMaskedKey())
                 .expiresAt(apiKey.getExpiresAt())
                 .createdAt(apiKey.getCreatedAt())
+                .lastUsedAt(apiKey.getLastUsedAt())
                 .revoked(apiKey.isRevoked())
                 .permissions(apiKey.getPermissions())
                 .build();

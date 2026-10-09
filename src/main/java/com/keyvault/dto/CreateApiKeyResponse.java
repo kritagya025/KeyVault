@@ -21,6 +21,7 @@ public class CreateApiKeyResponse {
     private String maskedKey;
     private LocalDateTime expiresAt;
     private LocalDateTime createdAt;
+    private LocalDateTime lastUsedAt;
     private boolean revoked;
     private Set<Permission> permissions;
 }
