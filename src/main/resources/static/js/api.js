@@ -99,6 +99,10 @@ export const api = {
 
     createKey: (payload) => request('POST', '/api/keys', { body: payload }),
 
+    updateKey: (id, payload) => request('PATCH', `/api/keys/${id}`, { body: payload }),
+
+    deleteKey: (id) => request('DELETE', `/api/keys/${id}`),
+
     revokeKey: (id) => request('PATCH', `/api/keys/${id}/revoke`),
 
     regenerateKey: (id) => request('POST', `/api/keys/${id}/regenerate`),

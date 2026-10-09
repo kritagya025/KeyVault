@@ -13,11 +13,11 @@ KeyVault is a lightweight, secure Spring Boot 3 backend service built for API Ke
 
 KeyVault addresses key lifecycle management and access control in backend architectures without storing plaintext credentials.
 
-- **User Authentication**: JWT-based access for developers/users managing their keys.
-- **One-Way Hashing**: Raw API keys (`kv_live_...`) are returned only once upon generation/regeneration. Only SHA-256 hashes are persisted in PostgreSQL.
+- **User Authentication**: JWT-based access for developers/users managing their accounts and keys.
+- **One-Way Hashing & Safe Previews**: Raw API keys (`kv_live_...`) are returned only once upon generation/regeneration. Only SHA-256 hashes are persisted in PostgreSQL, paired with safe masked identifiers (`kv_live_••••••••abcd`) for dashboard recognition.
 - **Granular Permissions**: API keys can be scoped with `READ` or `WRITE` permissions.
-- **Lifecycle Management**: View, revoke, and regenerate keys with dynamic status calculation (`ACTIVE`, `REVOKED`, `EXPIRED`).
-- **Usage Tracking**: Intercepts requests to record endpoint calls, HTTP methods, response status codes, and success metrics per key without logging sensitive data.
+- **Full Lifecycle Management**: Create, update metadata, revoke, delete, and regenerate keys with dynamic status calculation (`ACTIVE`, `REVOKED`, `EXPIRED`).
+- **Usage & Activity Tracking**: Intercepts requests to record endpoint calls, HTTP methods, response status codes, success metrics, and `lastUsedAt` timestamps per key without logging sensitive data. Paginated query endpoints allow deep usage inspection.
 
 ---
 
@@ -233,23 +233,28 @@ Use the **Authorize** button in Swagger UI to test endpoints:
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/health` | Public | Service health check (`UP`). |
 
-### 2. User Authentication
+### 2. User Authentication & Profile
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/auth/register` | Public | Register new user account (`name`, `email`, `password`). |
 | `POST` | `/api/auth/login` | Public | Authenticate user, returns JWT `accessToken`. |
 | `GET` | `/api/users/me` | JWT | Retrieve current authenticated user profile. |
+| `PATCH` | `/api/users/me` | JWT | Update authenticated user profile name. |
+| `PUT` | `/api/users/me/password` | JWT | Change user password verifying current password. |
 
 ### 3. API Key Management & Usage
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/keys` | JWT | Generate new API key with permissions (e.g. `["READ", "WRITE"]`). Returns raw key once. |
-| `GET` | `/api/keys` | JWT | List all API keys owned by current user. |
-| `GET` | `/api/keys/{id}` | JWT | Get single API key metadata, permissions, and status. |
+| `GET` | `/api/keys` | JWT | List all API keys owned by current user (includes `maskedKey` & `lastUsedAt`). |
+| `GET` | `/api/keys/{id}` | JWT | Get single API key metadata, permissions, status, `maskedKey`, and `lastUsedAt`. |
+| `PATCH` | `/api/keys/{id}` | JWT | Update key name and/or permissions without rotating the secret. |
 | `PATCH` | `/api/keys/{id}/revoke` | JWT | Revoke an API key immediately (`REVOKED`). |
+| `DELETE` | `/api/keys/{id}` | JWT | Permanently delete API key and its associated usage history. |
 | `POST` | `/api/keys/{id}/regenerate` | JWT | Regenerate an `ACTIVE` or `EXPIRED` key. Issues new raw key once. |
 | `GET` | `/api/keys/{id}/usage` | JWT | Get aggregate request statistics (`totalRequests`, `successfulRequests`, `failedRequests`). |
 | `GET` | `/api/keys/{id}/usage/recent` | JWT | Get top 10 recent request log records for an API key. |
+| `GET` | `/api/keys/{id}/usage/logs` | JWT | Query paginated usage logs with optional status filtering (`?page=0&size=20&successful=true`). |
 
 ### 4. Protected Consumer APIs
 | Method | Endpoint | Auth | Description |
@@ -289,6 +294,19 @@ curl -X GET http://localhost:8080/api/protected/read \
   -H "X-API-Key: kv_live_<RAW_KEY>"
 ```
 
+### 4. Update or Delete API Key
+```bash
+# Update key name and permissions
+curl -X PATCH http://localhost:8080/api/keys/1 \
+  -H "Authorization: Bearer <JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Renamed Key","permissions":["READ"]}'
+
+# Permanently delete API key
+curl -X DELETE http://localhost:8080/api/keys/1 \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+```
+
 ---
 
 ## Testing
@@ -299,12 +317,12 @@ The suite runs against an in-memory H2 database in PostgreSQL compatibility mode
 ./mvnw test
 ```
 
-50 tests across two layers:
+62 tests across two layers:
 
 | Layer | Coverage |
 | :--- | :--- |
-| **Unit** (`ApiKeyServiceTest`, `AuthServiceTest`, `ApiUsageServiceTest`, `ApiKeyGeneratorTest`, `JwtUtilsTest`) | Key hashing and SHA-256 digests, permission defaulting, expiry validation, revocation idempotency, regeneration windows, BCrypt password handling, JWT signing, expiry and secret validation. |
-| **Integration** (`*IntegrationTest`) | Full request path through the Spring Security filter chain: registration and login, dual authentication, `READ`/`WRITE` permission enforcement, key lifecycle, ownership isolation, usage tracking, key regeneration, and dashboard asset access. |
+| **Unit** (`ApiKeyServiceTest`, `AuthServiceTest`, `ApiUsageServiceTest`, `ApiKeyGeneratorTest`, `JwtUtilsTest`) | Key hashing and SHA-256 digests, key masking, last-used updates, permission defaulting, expiry validation, revocation idempotency, regeneration windows, BCrypt password handling, profile updates, password change verification, JWT signing, expiry and secret validation. |
+| **Integration** (`*IntegrationTest`) | Full request path through the Spring Security filter chain: registration and login, profile management, password updates, dual authentication, `READ`/`WRITE` permission enforcement, key lifecycle (creation, update, revocation, deletion), ownership isolation, usage tracking with pagination, key regeneration, and dashboard asset access. |
 
 The `test` profile lives in `src/test/resources/application-test.yml`. Every test class is annotated `@ActiveProfiles("test")`, so no production configuration is ever loaded during a test run.
 

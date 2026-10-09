@@ -86,7 +86,15 @@ export function initKeys({ onSelect, onError }) {
         const row = el('tr');
         if (key.id === selectedId) row.classList.add('is-selected');
 
-        row.append(el('td', { className: 'table__name', text: key.name }));
+        const nameCell = el('td', { className: 'table__name' });
+        nameCell.append(el('span', { text: key.name }));
+        if (key.maskedKey) {
+            const code = el('code', { className: 'perm', text: key.maskedKey });
+            code.style.marginLeft = '8px';
+            code.style.fontSize = '0.75rem';
+            nameCell.append(code);
+        }
+        row.append(nameCell);
 
         const status = el('td');
         status.append(el('span', {
@@ -141,6 +149,22 @@ export function initKeys({ onSelect, onError }) {
                 },
             ));
         }
+
+        group.append(armable(
+            el('button', { className: 'btn btn--ghost btn--sm', text: 'Delete' }),
+            'Delete key?',
+            async () => {
+                try {
+                    await api.deleteKey(key.id);
+                    if (selectedId === key.id) {
+                        selectedId = null;
+                    }
+                    await refresh();
+                } catch (error) {
+                    onError(error.message);
+                }
+            },
+        ));
 
         actions.append(group);
         row.append(actions);
