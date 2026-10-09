@@ -92,6 +92,17 @@ public class ApiKeyController {
         return ResponseEntity.ok(response);
     }
 
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}")
+    @Operation(summary = "Delete API Key", description = "Permanently delete an API key and remove associated usage history.")
+    public ResponseEntity<Void> deleteApiKey(
+            Authentication authentication,
+            @PathVariable Long id
+    ) {
+        User user = getUser(authentication);
+        apiKeyService.deleteApiKey(user, id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/regenerate")
     @Operation(summary = "Regenerate API Key", description = "Regenerate an ACTIVE or EXPIRED API key. Replaces old hash with a new key and returns the raw key ONCE.")
     public ResponseEntity<CreateApiKeyResponse> regenerateApiKey(

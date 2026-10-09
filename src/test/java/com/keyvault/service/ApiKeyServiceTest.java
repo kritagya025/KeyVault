@@ -44,6 +44,9 @@ class ApiKeyServiceTest {
     @Mock
     private ApiKeyRepository apiKeyRepository;
 
+    @Mock
+    private com.keyvault.repository.ApiUsageRepository apiUsageRepository;
+
     private ApiKeyGenerator apiKeyGenerator;
     private ApiKeyService apiKeyService;
     private User owner;
@@ -51,7 +54,7 @@ class ApiKeyServiceTest {
     @BeforeEach
     void setUp() {
         apiKeyGenerator = new ApiKeyGenerator();
-        apiKeyService = new ApiKeyService(apiKeyRepository, apiKeyGenerator);
+        apiKeyService = new ApiKeyService(apiKeyRepository, apiKeyGenerator, apiUsageRepository);
         owner = User.builder().id(OWNER_ID).email("owner@example.com").name("Owner").role("ROLE_USER").build();
     }
 
@@ -235,5 +238,28 @@ class ApiKeyServiceTest {
 
         assertThrows(IllegalArgumentException.class, () -> apiKeyService.updateApiKey(owner, 18L,
                 com.keyvault.dto.UpdateApiKeyRequest.builder().permissions(Set.of()).build()));
+    }
+
+    @Test
+    @DisplayName("Deleting an API key removes associated usage logs and deletes key entity")
+    void deleteApiKeyRemovesKeyAndUsage() {
+        ApiKey key = storedKey(19L, owner, LocalDateTime.now(), null, false);
+        when(apiKeyRepository.findById(19L)).thenReturn(Optional.of(key));
+
+        apiKeyService.deleteApiKey(owner, 19L);
+
+        verify(apiUsageRepository).deleteByApiKeyId(19L);
+        verify(apiKeyRepository).delete(key);
+    }
+
+    @Test
+    @DisplayName("Deleting another user's key throws ResourceNotFoundException")
+    void deleteApiKeyRejectsNonOwner() {
+        User intruder = User.builder().id(INTRUDER_ID).email("intruder@example.com").build();
+        ApiKey key = storedKey(20L, owner, LocalDateTime.now(), null, false);
+        when(apiKeyRepository.findById(20L)).thenReturn(Optional.of(key));
+
+        assertThrows(ResourceNotFoundException.class, () -> apiKeyService.deleteApiKey(intruder, 20L));
+        verify(apiKeyRepository, never()).delete(any(ApiKey.class));
     }
 }

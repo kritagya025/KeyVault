@@ -107,5 +107,13 @@ public class ApiKeyIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.revoked").value(true))
                 .andExpect(jsonPath("$.status").value("REVOKED"));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/keys/" + keyId)
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/keys/" + keyId)
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isNotFound());
     }
 }

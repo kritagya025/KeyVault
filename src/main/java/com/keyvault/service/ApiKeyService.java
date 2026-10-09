@@ -35,6 +35,7 @@ public class ApiKeyService {
 
     private final ApiKeyRepository apiKeyRepository;
     private final ApiKeyGenerator apiKeyGenerator;
+    private final com.keyvault.repository.ApiUsageRepository apiUsageRepository;
 
     /**
      * Generates a new API key for the authenticated user.
@@ -128,6 +129,19 @@ public class ApiKeyService {
 
         ApiKey updated = apiKeyRepository.save(apiKey);
         return ApiKeyResponse.fromEntity(updated);
+    }
+
+    /**
+     * Permanently deletes an API key and cleans up its associated usage metrics.
+     *
+     * @param user the key owner
+     * @param id the API key id
+     */
+    @Transactional
+    public void deleteApiKey(User user, Long id) {
+        ApiKey apiKey = findApiKeyAndVerifyOwnership(user, id);
+        apiUsageRepository.deleteByApiKeyId(apiKey.getId());
+        apiKeyRepository.delete(apiKey);
     }
 
     /**
