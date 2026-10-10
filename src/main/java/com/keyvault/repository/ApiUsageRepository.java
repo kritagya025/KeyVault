@@ -24,6 +24,10 @@ public interface ApiUsageRepository extends JpaRepository<ApiUsage, Long> {
 
     org.springframework.data.domain.Page<ApiUsage> findByApiKeyIdAndSuccessful(Long apiKeyId, boolean successful, org.springframework.data.domain.Pageable pageable);
 
+    @Query("SELECT new com.keyvault.dto.EndpointUsageCount(u.endpoint, COUNT(u)) " +
+           "FROM ApiUsage u WHERE u.apiKey.id = :apiKeyId GROUP BY u.endpoint ORDER BY COUNT(u) DESC")
+    List<com.keyvault.dto.EndpointUsageCount> countRequestsByEndpoint(@Param("apiKeyId") Long apiKeyId);
+
     @Modifying
     @Query("DELETE FROM ApiUsage u WHERE u.apiKey.id = :apiKeyId")
     void deleteByApiKeyId(@Param("apiKeyId") Long apiKeyId);

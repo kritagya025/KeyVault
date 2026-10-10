@@ -15,4 +15,5 @@ public class ApiUsageStatsResponse {
     private long totalRequests;
     private long successfulRequests;
     private long failedRequests;
+    private java.util.Map<String, Long> requestsByEndpoint;
 }

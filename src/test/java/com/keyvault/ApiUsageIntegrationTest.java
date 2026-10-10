@@ -87,7 +87,9 @@ public class ApiUsageIntegrationTest {
                 .andExpect(jsonPath("$.apiKeyId").value(keyId))
                 .andExpect(jsonPath("$.totalRequests").value(2))
                 .andExpect(jsonPath("$.successfulRequests").value(1))
-                .andExpect(jsonPath("$.failedRequests").value(1));
+                .andExpect(jsonPath("$.failedRequests").value(1))
+                .andExpect(jsonPath("$.requestsByEndpoint['/api/protected/read']").value(1))
+                .andExpect(jsonPath("$.requestsByEndpoint['/api/protected/write']").value(1));
 
         mockMvc.perform(get("/api/keys/" + keyId + "/usage/recent")
                         .header("Authorization", "Bearer " + jwtToken))

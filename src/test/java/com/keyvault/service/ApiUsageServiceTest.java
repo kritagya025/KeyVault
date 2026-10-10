@@ -79,6 +79,10 @@ class ApiUsageServiceTest {
         when(apiUsageRepository.countByApiKeyId(KEY_ID)).thenReturn(10L);
         when(apiUsageRepository.countByApiKeyIdAndSuccessfulTrue(KEY_ID)).thenReturn(7L);
         when(apiUsageRepository.countByApiKeyIdAndSuccessfulFalse(KEY_ID)).thenReturn(3L);
+        when(apiUsageRepository.countRequestsByEndpoint(KEY_ID)).thenReturn(List.of(
+                new com.keyvault.dto.EndpointUsageCount("/api/protected/read", 7L),
+                new com.keyvault.dto.EndpointUsageCount("/api/protected/write", 3L)
+        ));
 
         ApiUsageStatsResponse stats = apiUsageService.getUsageStats(owner, KEY_ID);
 
@@ -86,6 +90,8 @@ class ApiUsageServiceTest {
         assertEquals(10L, stats.getTotalRequests());
         assertEquals(7L, stats.getSuccessfulRequests());
         assertEquals(3L, stats.getFailedRequests());
+        assertEquals(7L, stats.getRequestsByEndpoint().get("/api/protected/read"));
+        assertEquals(3L, stats.getRequestsByEndpoint().get("/api/protected/write"));
     }
 
     @Test

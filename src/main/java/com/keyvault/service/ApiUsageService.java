@@ -48,11 +48,17 @@ public class ApiUsageService {
         long successful = apiUsageRepository.countByApiKeyIdAndSuccessfulTrue(apiKeyId);
         long failed = apiUsageRepository.countByApiKeyIdAndSuccessfulFalse(apiKeyId);
 
+        java.util.Map<String, Long> requestsByEndpoint = new java.util.LinkedHashMap<>();
+        for (com.keyvault.dto.EndpointUsageCount count : apiUsageRepository.countRequestsByEndpoint(apiKeyId)) {
+            requestsByEndpoint.put(count.getEndpoint(), count.getCount());
+        }
+
         return ApiUsageStatsResponse.builder()
                 .apiKeyId(apiKeyId)
                 .totalRequests(total)
                 .successfulRequests(successful)
                 .failedRequests(failed)
+                .requestsByEndpoint(requestsByEndpoint)
                 .build();
     }
 
