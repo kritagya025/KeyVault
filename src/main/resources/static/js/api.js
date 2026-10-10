@@ -95,7 +95,15 @@ export const api = {
 
     me: () => request('GET', '/api/users/me'),
 
-    listKeys: () => request('GET', '/api/keys'),
+    listKeys: (params = {}) => {
+        const searchParams = new URLSearchParams();
+        if (params.status) searchParams.set('status', params.status);
+        if (params.query) searchParams.set('query', params.query);
+        const qs = searchParams.toString();
+        return request('GET', qs ? `/api/keys?${qs}` : '/api/keys');
+    },
+
+    accountSummary: () => request('GET', '/api/keys/summary'),
 
     createKey: (payload) => request('POST', '/api/keys', { body: payload }),
 

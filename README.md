@@ -246,13 +246,14 @@ Use the **Authorize** button in Swagger UI to test endpoints:
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/keys` | JWT | Generate new API key with permissions (e.g. `["READ", "WRITE"]`). Returns raw key once. |
-| `GET` | `/api/keys` | JWT | List all API keys owned by current user (includes `maskedKey` & `lastUsedAt`). |
+| `GET` | `/api/keys` | JWT | List API keys owned by current user with optional `?status=ACTIVE` and `?query=name` filters. |
+| `GET` | `/api/keys/summary` | JWT | Get account-level overview metrics (key counts by status, aggregate total/successful/failed requests). |
 | `GET` | `/api/keys/{id}` | JWT | Get single API key metadata, permissions, status, `maskedKey`, and `lastUsedAt`. |
-| `PATCH` | `/api/keys/{id}` | JWT | Update key name and/or permissions without rotating the secret. |
+| `PATCH` | `/api/keys/{id}` | JWT | Update key name, permissions, extend `expiresAt`, or clear expiration (`clearExpiration: true`). |
 | `PATCH` | `/api/keys/{id}/revoke` | JWT | Revoke an API key immediately (`REVOKED`). |
 | `DELETE` | `/api/keys/{id}` | JWT | Permanently delete API key and its associated usage history. |
 | `POST` | `/api/keys/{id}/regenerate` | JWT | Regenerate an `ACTIVE` or `EXPIRED` key. Issues new raw key once. |
-| `GET` | `/api/keys/{id}/usage` | JWT | Get aggregate request statistics (`totalRequests`, `successfulRequests`, `failedRequests`). |
+| `GET` | `/api/keys/{id}/usage` | JWT | Get aggregate request statistics (`totalRequests`, `successfulRequests`, `failedRequests`, and `requestsByEndpoint`). |
 | `GET` | `/api/keys/{id}/usage/recent` | JWT | Get top 10 recent request log records for an API key. |
 | `GET` | `/api/keys/{id}/usage/logs` | JWT | Query paginated usage logs with optional status filtering (`?page=0&size=20&successful=true`). |
 
@@ -280,12 +281,21 @@ curl -X POST http://localhost:8080/api/auth/login \
   -d '{"email":"alex@example.com","password":"password123"}'
 ```
 
-### 2. Generate API Key
+### 2. Generate API Key & View Account Summary
 ```bash
+# Generate API key
 curl -X POST http://localhost:8080/api/keys \
   -H "Authorization: Bearer <JWT_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"name":"Production Key","permissions":["READ","WRITE"]}'
+
+# Account overview summary
+curl -X GET http://localhost:8080/api/keys/summary \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+
+# Filter active keys by name
+curl -X GET "http://localhost:8080/api/keys?status=ACTIVE&query=Production" \
+  -H "Authorization: Bearer <JWT_TOKEN>"
 ```
 
 ### 3. Consume Protected Endpoint with API Key
@@ -294,13 +304,13 @@ curl -X GET http://localhost:8080/api/protected/read \
   -H "X-API-Key: kv_live_<RAW_KEY>"
 ```
 
-### 4. Update or Delete API Key
+### 4. Update, Extend, or Delete API Key
 ```bash
-# Update key name and permissions
+# Update key name, permissions, and extend expiry date
 curl -X PATCH http://localhost:8080/api/keys/1 \
   -H "Authorization: Bearer <JWT_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"name":"Renamed Key","permissions":["READ"]}'
+  -d '{"name":"Renamed Key","permissions":["READ"],"expiresAt":"2026-12-31T23:59:59"}'
 
 # Permanently delete API key
 curl -X DELETE http://localhost:8080/api/keys/1 \
@@ -317,7 +327,7 @@ The suite runs against an in-memory H2 database in PostgreSQL compatibility mode
 ./mvnw test
 ```
 
-62 tests across two layers:
+71 tests across two layers:
 
 | Layer | Coverage |
 | :--- | :--- |
