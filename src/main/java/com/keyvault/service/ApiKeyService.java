@@ -107,6 +107,38 @@ public class ApiKeyService {
     }
 
     @Transactional(readOnly = true)
+    public com.keyvault.dto.ApiKeyOverviewResponse getAccountSummary(User user) {
+        List<ApiKey> keys = apiKeyRepository.findByUserId(user.getId());
+
+        long activeKeys = 0;
+        long revokedKeys = 0;
+        long expiredKeys = 0;
+
+        for (ApiKey key : keys) {
+            String status = ApiKeyResponse.calculateStatus(key);
+            switch (status) {
+                case "ACTIVE" -> activeKeys++;
+                case "REVOKED" -> revokedKeys++;
+                case "EXPIRED" -> expiredKeys++;
+            }
+        }
+
+        long totalRequests = apiUsageRepository.countByUserId(user.getId());
+        long successfulRequests = apiUsageRepository.countByUserIdAndSuccessfulTrue(user.getId());
+        long failedRequests = apiUsageRepository.countByUserIdAndSuccessfulFalse(user.getId());
+
+        return com.keyvault.dto.ApiKeyOverviewResponse.builder()
+                .totalKeys(keys.size())
+                .activeKeys(activeKeys)
+                .revokedKeys(revokedKeys)
+                .expiredKeys(expiredKeys)
+                .totalRequests(totalRequests)
+                .successfulRequests(successfulRequests)
+                .failedRequests(failedRequests)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
     public ApiKeyResponse getApiKeyById(User user, Long id) {
         ApiKey apiKey = findApiKeyAndVerifyOwnership(user, id);
         return ApiKeyResponse.fromEntity(apiKey);

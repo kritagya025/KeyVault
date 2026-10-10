@@ -215,4 +215,52 @@ public class ApiKeyIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").isNotEmpty());
     }
+
+    @Test
+    public void testGetAccountSummaryEndpoint() throws Exception {
+        CreateApiKeyRequest key1Req = CreateApiKeyRequest.builder()
+                .name("Summary Key 1")
+                .permissions(Set.of(Permission.READ))
+                .build();
+        CreateApiKeyRequest key2Req = CreateApiKeyRequest.builder()
+                .name("Summary Key 2")
+                .permissions(Set.of(Permission.READ))
+                .build();
+
+        MvcResult key1Result = mockMvc.perform(post("/api/keys")
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(key1Req)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        CreateApiKeyResponse key1 = objectMapper.readValue(key1Result.getResponse().getContentAsString(), CreateApiKeyResponse.class);
+
+        mockMvc.perform(post("/api/keys")
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(key2Req)))
+                .andExpect(status().isCreated());
+
+        // Make a successful request using key1
+        mockMvc.perform(get("/api/protected/read")
+                        .header("X-API-Key", key1.getApiKey()))
+                .andExpect(status().isOk());
+
+        // Revoke key1
+        mockMvc.perform(patch("/api/keys/" + key1.getId() + "/revoke")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk());
+
+        // Check account summary
+        mockMvc.perform(get("/api/keys/summary")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalKeys").value(2))
+                .andExpect(jsonPath("$.activeKeys").value(1))
+                .andExpect(jsonPath("$.revokedKeys").value(1))
+                .andExpect(jsonPath("$.expiredKeys").value(0))
+                .andExpect(jsonPath("$.totalRequests").value(1))
+                .andExpect(jsonPath("$.successfulRequests").value(1))
+                .andExpect(jsonPath("$.failedRequests").value(0));
+    }
 }

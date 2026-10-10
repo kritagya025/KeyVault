@@ -350,4 +350,27 @@ class ApiKeyServiceTest {
         assertThrows(IllegalArgumentException.class,
                 () -> apiKeyService.getUserApiKeys(owner, "UNKNOWN_STATUS", null));
     }
+
+    @Test
+    @DisplayName("Account summary computes aggregate key counts and usage stats")
+    void getAccountSummaryComputesCorrectMetrics() {
+        ApiKey activeKey = storedKey(31L, owner, LocalDateTime.now(), null, false);
+        ApiKey revokedKey = storedKey(32L, owner, LocalDateTime.now(), null, true);
+        ApiKey expiredKey = storedKey(33L, owner, LocalDateTime.now().minusDays(10), LocalDateTime.now().minusDays(1), false);
+
+        when(apiKeyRepository.findByUserId(OWNER_ID)).thenReturn(List.of(activeKey, revokedKey, expiredKey));
+        when(apiUsageRepository.countByUserId(OWNER_ID)).thenReturn(50L);
+        when(apiUsageRepository.countByUserIdAndSuccessfulTrue(OWNER_ID)).thenReturn(45L);
+        when(apiUsageRepository.countByUserIdAndSuccessfulFalse(OWNER_ID)).thenReturn(5L);
+
+        com.keyvault.dto.ApiKeyOverviewResponse summary = apiKeyService.getAccountSummary(owner);
+
+        assertEquals(3L, summary.getTotalKeys());
+        assertEquals(1L, summary.getActiveKeys());
+        assertEquals(1L, summary.getRevokedKeys());
+        assertEquals(1L, summary.getExpiredKeys());
+        assertEquals(50L, summary.getTotalRequests());
+        assertEquals(45L, summary.getSuccessfulRequests());
+        assertEquals(5L, summary.getFailedRequests());
+    }
 }

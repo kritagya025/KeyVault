@@ -62,6 +62,14 @@ public class ApiKeyController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/summary")
+    @Operation(summary = "Get Account API Keys and Usage Summary", description = "Retrieve high-level overview metrics for the authenticated user, including key counts by status and overall API usage counts.")
+    public ResponseEntity<com.keyvault.dto.ApiKeyOverviewResponse> getAccountSummary(Authentication authentication) {
+        User user = getUser(authentication);
+        com.keyvault.dto.ApiKeyOverviewResponse response = apiKeyService.getAccountSummary(user);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get API Key Details", description = "Retrieve metadata, permissions, and derived status for a specific API key.")
     public ResponseEntity<ApiKeyResponse> getApiKeyById(

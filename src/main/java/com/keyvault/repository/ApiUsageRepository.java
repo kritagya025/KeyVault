@@ -18,6 +18,15 @@ public interface ApiUsageRepository extends JpaRepository<ApiUsage, Long> {
 
     long countByApiKeyIdAndSuccessfulFalse(Long apiKeyId);
 
+    @Query("SELECT COUNT(u) FROM ApiUsage u WHERE u.apiKey.user.id = :userId")
+    long countByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT COUNT(u) FROM ApiUsage u WHERE u.apiKey.user.id = :userId AND u.successful = true")
+    long countByUserIdAndSuccessfulTrue(@Param("userId") Long userId);
+
+    @Query("SELECT COUNT(u) FROM ApiUsage u WHERE u.apiKey.user.id = :userId AND u.successful = false")
+    long countByUserIdAndSuccessfulFalse(@Param("userId") Long userId);
+
     List<ApiUsage> findTop10ByApiKeyIdOrderByTimestampDesc(Long apiKeyId);
 
     org.springframework.data.domain.Page<ApiUsage> findByApiKeyId(Long apiKeyId, org.springframework.data.domain.Pageable pageable);
