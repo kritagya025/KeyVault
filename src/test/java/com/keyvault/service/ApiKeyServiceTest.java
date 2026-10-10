@@ -242,6 +242,44 @@ class ApiKeyServiceTest {
     }
 
     @Test
+    @DisplayName("Updating API key sets future expiration date")
+    void updateApiKeyUpdatesExpirationDate() {
+        ApiKey key = storedKey(181L, owner, LocalDateTime.now(), null, false);
+        when(apiKeyRepository.findById(181L)).thenReturn(Optional.of(key));
+        stubSaveEchoingArgument();
+
+        LocalDateTime futureExpiry = LocalDateTime.now().plusDays(60);
+        ApiKeyResponse response = apiKeyService.updateApiKey(owner, 181L,
+                com.keyvault.dto.UpdateApiKeyRequest.builder().expiresAt(futureExpiry).build());
+
+        assertEquals(futureExpiry, response.getExpiresAt());
+    }
+
+    @Test
+    @DisplayName("Updating API key clears expiration date when requested")
+    void updateApiKeyClearsExpirationDate() {
+        ApiKey key = storedKey(182L, owner, LocalDateTime.now(), LocalDateTime.now().plusDays(30), false);
+        when(apiKeyRepository.findById(182L)).thenReturn(Optional.of(key));
+        stubSaveEchoingArgument();
+
+        ApiKeyResponse response = apiKeyService.updateApiKey(owner, 182L,
+                com.keyvault.dto.UpdateApiKeyRequest.builder().clearExpiration(true).build());
+
+        org.junit.jupiter.api.Assertions.assertNull(response.getExpiresAt());
+    }
+
+    @Test
+    @DisplayName("Updating API key rejects past expiration date")
+    void updateApiKeyRejectsPastExpirationDate() {
+        ApiKey key = storedKey(183L, owner, LocalDateTime.now(), null, false);
+        when(apiKeyRepository.findById(183L)).thenReturn(Optional.of(key));
+
+        LocalDateTime pastExpiry = LocalDateTime.now().minusMinutes(5);
+        assertThrows(IllegalArgumentException.class, () -> apiKeyService.updateApiKey(owner, 183L,
+                com.keyvault.dto.UpdateApiKeyRequest.builder().expiresAt(pastExpiry).build()));
+    }
+
+    @Test
     @DisplayName("Deleting an API key removes associated usage logs and deletes key entity")
     void deleteApiKeyRemovesKeyAndUsage() {
         ApiKey key = storedKey(19L, owner, LocalDateTime.now(), null, false);

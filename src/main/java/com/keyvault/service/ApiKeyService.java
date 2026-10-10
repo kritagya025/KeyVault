@@ -150,6 +150,15 @@ public class ApiKeyService {
             apiKey.setPermissions(EnumSet.copyOf(request.getPermissions()));
         }
 
+        if (Boolean.TRUE.equals(request.getClearExpiration())) {
+            apiKey.setExpiresAt(null);
+        } else if (request.getExpiresAt() != null) {
+            if (request.getExpiresAt().isBefore(LocalDateTime.now())) {
+                throw new IllegalArgumentException("Expiration date must be in the future");
+            }
+            apiKey.setExpiresAt(request.getExpiresAt());
+        }
+
         ApiKey updated = apiKeyRepository.save(apiKey);
         return ApiKeyResponse.fromEntity(updated);
     }

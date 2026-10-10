@@ -102,6 +102,43 @@ public class ApiKeyIntegrationTest {
                 .andExpect(jsonPath("$.permissions[0]").value("READ"))
                 .andExpect(jsonPath("$.permissions.length()").value(1));
 
+        // Test updating expiration date
+        java.time.LocalDateTime futureExpiry = java.time.LocalDateTime.now().plusDays(45);
+        com.keyvault.dto.UpdateApiKeyRequest expiryReq = com.keyvault.dto.UpdateApiKeyRequest.builder()
+                .expiresAt(futureExpiry)
+                .build();
+
+        mockMvc.perform(patch("/api/keys/" + keyId)
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(expiryReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expiresAt").isNotEmpty());
+
+        // Test clearing expiration date
+        com.keyvault.dto.UpdateApiKeyRequest clearReq = com.keyvault.dto.UpdateApiKeyRequest.builder()
+                .clearExpiration(true)
+                .build();
+
+        mockMvc.perform(patch("/api/keys/" + keyId)
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(clearReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expiresAt").isEmpty());
+
+        // Test rejecting past expiration date
+        com.keyvault.dto.UpdateApiKeyRequest invalidExpiryReq = com.keyvault.dto.UpdateApiKeyRequest.builder()
+                .expiresAt(java.time.LocalDateTime.now().minusDays(1))
+                .build();
+
+        mockMvc.perform(patch("/api/keys/" + keyId)
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidExpiryReq)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").isNotEmpty());
+
         mockMvc.perform(patch("/api/keys/" + keyId + "/revoke")
                         .header("Authorization", "Bearer " + jwtToken))
                 .andExpect(status().isOk())

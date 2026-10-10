@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 @Data
@@ -19,4 +20,8 @@ public class UpdateApiKeyRequest {
     private String name;
 
     private Set<Permission> permissions;
+
+    private LocalDateTime expiresAt;
+
+    private Boolean clearExpiration;
 }
