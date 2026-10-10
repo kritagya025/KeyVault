@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -261,5 +262,54 @@ class ApiKeyServiceTest {
 
         assertThrows(ResourceNotFoundException.class, () -> apiKeyService.deleteApiKey(intruder, 20L));
         verify(apiKeyRepository, never()).delete(any(ApiKey.class));
+    }
+
+    @Test
+    @DisplayName("Listing user keys filters accurately by status")
+    void getUserApiKeysFiltersByStatus() {
+        ApiKey activeKey = storedKey(21L, owner, LocalDateTime.now(), null, false);
+        ApiKey revokedKey = storedKey(22L, owner, LocalDateTime.now(), null, true);
+        ApiKey expiredKey = storedKey(23L, owner, LocalDateTime.now().minusDays(10), LocalDateTime.now().minusDays(1), false);
+
+        when(apiKeyRepository.findByUserId(OWNER_ID)).thenReturn(List.of(activeKey, revokedKey, expiredKey));
+
+        List<ApiKeyResponse> activeResults = apiKeyService.getUserApiKeys(owner, "ACTIVE", null);
+        assertEquals(1, activeResults.size());
+        assertEquals(21L, activeResults.get(0).getId());
+
+        List<ApiKeyResponse> revokedResults = apiKeyService.getUserApiKeys(owner, "revoked", null);
+        assertEquals(1, revokedResults.size());
+        assertEquals(22L, revokedResults.get(0).getId());
+
+        List<ApiKeyResponse> expiredResults = apiKeyService.getUserApiKeys(owner, "EXPIRED", null);
+        assertEquals(1, expiredResults.size());
+        assertEquals(23L, expiredResults.get(0).getId());
+    }
+
+    @Test
+    @DisplayName("Listing user keys filters by name query ignoring case")
+    void getUserApiKeysFiltersByQuery() {
+        ApiKey key1 = storedKey(24L, owner, LocalDateTime.now(), null, false);
+        key1.setName("Production Server Key");
+        ApiKey key2 = storedKey(25L, owner, LocalDateTime.now(), null, false);
+        key2.setName("Staging Key");
+
+        when(apiKeyRepository.findByUserId(OWNER_ID)).thenReturn(List.of(key1, key2));
+
+        List<ApiKeyResponse> prodResults = apiKeyService.getUserApiKeys(owner, null, "prod");
+        assertEquals(1, prodResults.size());
+        assertEquals("Production Server Key", prodResults.get(0).getName());
+
+        List<ApiKeyResponse> noResults = apiKeyService.getUserApiKeys(owner, null, "qa");
+        assertTrue(noResults.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Listing user keys throws IllegalArgumentException on invalid status")
+    void getUserApiKeysRejectsInvalidStatus() {
+        when(apiKeyRepository.findByUserId(OWNER_ID)).thenReturn(List.of());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> apiKeyService.getUserApiKeys(owner, "UNKNOWN_STATUS", null));
     }
 }

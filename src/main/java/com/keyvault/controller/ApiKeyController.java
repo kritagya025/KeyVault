@@ -51,10 +51,14 @@ public class ApiKeyController {
     }
 
     @GetMapping
-    @Operation(summary = "List User API Keys", description = "Retrieve metadata and permissions for all API keys owned by the authenticated user.")
-    public ResponseEntity<List<ApiKeyResponse>> getUserApiKeys(Authentication authentication) {
+    @Operation(summary = "List User API Keys", description = "Retrieve metadata and permissions for all API keys owned by the authenticated user, with optional status and query filtering.")
+    public ResponseEntity<List<ApiKeyResponse>> getUserApiKeys(
+            Authentication authentication,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String status,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String query
+    ) {
         User user = getUser(authentication);
-        List<ApiKeyResponse> response = apiKeyService.getUserApiKeys(user);
+        List<ApiKeyResponse> response = apiKeyService.getUserApiKeys(user, status, query);
         return ResponseEntity.ok(response);
     }
 

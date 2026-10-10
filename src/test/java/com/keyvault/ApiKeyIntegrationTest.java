@@ -116,4 +116,66 @@ public class ApiKeyIntegrationTest {
                         .header("Authorization", "Bearer " + jwtToken))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    public void testListApiKeysWithStatusAndQueryFiltering() throws Exception {
+        CreateApiKeyRequest activeReq = CreateApiKeyRequest.builder()
+                .name("Production Service Key")
+                .permissions(Set.of(Permission.READ))
+                .build();
+        CreateApiKeyRequest stagingReq = CreateApiKeyRequest.builder()
+                .name("Staging Analytics Key")
+                .permissions(Set.of(Permission.READ))
+                .build();
+
+        MvcResult activeResult = mockMvc.perform(post("/api/keys")
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(activeReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        CreateApiKeyResponse activeKey = objectMapper.readValue(activeResult.getResponse().getContentAsString(), CreateApiKeyResponse.class);
+
+        MvcResult stagingResult = mockMvc.perform(post("/api/keys")
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(stagingReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        CreateApiKeyResponse stagingKey = objectMapper.readValue(stagingResult.getResponse().getContentAsString(), CreateApiKeyResponse.class);
+
+        // Revoke the staging key
+        mockMvc.perform(patch("/api/keys/" + stagingKey.getId() + "/revoke")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk());
+
+        // Filter by ACTIVE
+        mockMvc.perform(get("/api/keys?status=ACTIVE")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(activeKey.getId()));
+
+        // Filter by REVOKED
+        mockMvc.perform(get("/api/keys?status=REVOKED")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(stagingKey.getId()));
+
+        // Search by name query "prod"
+        mockMvc.perform(get("/api/keys?query=prod")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("Production Service Key"));
+
+        // Unknown status returns 400 Bad Request
+        mockMvc.perform(get("/api/keys?status=INVALID_STATUS")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").isNotEmpty());
+    }
 }

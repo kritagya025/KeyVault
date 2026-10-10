@@ -77,8 +77,31 @@ public class ApiKeyService {
 
     @Transactional(readOnly = true)
     public List<ApiKeyResponse> getUserApiKeys(User user) {
-        return apiKeyRepository.findByUserId(user.getId())
-                .stream()
+        return getUserApiKeys(user, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ApiKeyResponse> getUserApiKeys(User user, String status, String query) {
+        List<ApiKey> keys = apiKeyRepository.findByUserId(user.getId());
+
+        if (status != null && !status.trim().isEmpty()) {
+            String normalizedStatus = status.trim().toUpperCase();
+            if (!Set.of("ACTIVE", "REVOKED", "EXPIRED").contains(normalizedStatus)) {
+                throw new IllegalArgumentException("Invalid status filter: " + status + ". Allowed values: ACTIVE, REVOKED, EXPIRED");
+            }
+            keys = keys.stream()
+                    .filter(key -> ApiKeyResponse.calculateStatus(key).equals(normalizedStatus))
+                    .toList();
+        }
+
+        if (query != null && !query.trim().isEmpty()) {
+            String lowerQuery = query.trim().toLowerCase();
+            keys = keys.stream()
+                    .filter(key -> key.getName() != null && key.getName().toLowerCase().contains(lowerQuery))
+                    .toList();
+        }
+
+        return keys.stream()
                 .map(ApiKeyResponse::fromEntity)
                 .toList();
     }
