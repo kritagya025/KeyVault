@@ -97,14 +97,31 @@ export function initKeys({ onSelect, onError }) {
         row.append(nameCell);
 
         const status = el('td');
+        if (key.environment) {
+            const envClass = key.environment === 'PRODUCTION' ? 'badge--prod' :
+                             key.environment === 'STAGING' ? 'badge--stage' : 'badge--dev';
+            const envBadge = el('span', { className: `badge ${envClass}`, text: key.environment.slice(0, 4) });
+            envBadge.style.marginRight = '6px';
+            status.append(envBadge);
+        }
         status.append(el('span', {
             className: BADGE_CLASS[key.status] ?? 'badge',
             text: key.status,
         }));
+        if (key.expiringSoon) {
+            const expBadge = el('span', { className: 'badge badge--expiring', text: '⚠️ Expiring' });
+            expBadge.style.marginLeft = '6px';
+            status.append(expBadge);
+        }
         row.append(status);
 
         const perms = el('td');
         (key.permissions ?? []).forEach((p) => perms.append(el('span', { className: 'perm', text: p })));
+        if (key.rateLimit) {
+            const rl = el('span', { className: 'perm', text: `${key.rateLimit} req/m` });
+            rl.style.borderColor = 'var(--accent)';
+            perms.append(rl);
+        }
         row.append(perms);
 
         row.append(el('td', { className: 'cell-time', text: formatDateTime(key.createdAt) }));
@@ -122,6 +139,20 @@ export function initKeys({ onSelect, onError }) {
         group.append(usageButton);
 
         if (key.status !== 'REVOKED') {
+            group.append(armable(
+                el('button', { className: 'btn btn--ghost btn--sm', text: 'Rotate' }),
+                'Rotate key?',
+                async () => {
+                    try {
+                        const result = await api.rotateKey(key.id, { gracePeriodHours: 24 });
+                        await refresh();
+                        reveal('Rotated API key (24h grace period)', result.apiKey);
+                    } catch (error) {
+                        onError(error.message);
+                    }
+                },
+            ));
+
             group.append(armable(
                 el('button', { className: 'btn btn--ghost btn--sm', text: 'Regenerate' }),
                 'Replace key?',
@@ -209,6 +240,19 @@ export function initKeys({ onSelect, onError }) {
             name: (data.get('name') ?? '').trim(),
             permissions: permissions.length ? permissions : ['READ'],
         };
+
+        const environment = data.get('environment');
+        if (environment) payload.environment = environment;
+
+        const rateLimitVal = data.get('rateLimit');
+        if (rateLimitVal && !isNaN(parseInt(rateLimitVal, 10))) {
+            payload.rateLimit = parseInt(rateLimitVal, 10);
+        }
+
+        const ipVal = (data.get('ipRestrictions') ?? '').trim();
+        if (ipVal) {
+            payload.ipRestrictions = ipVal.split(',').map(s => s.trim()).filter(Boolean);
+        }
 
         const expiresAt = toLocalDateTime(data.get('expiresAt'));
         if (expiresAt) payload.expiresAt = expiresAt;

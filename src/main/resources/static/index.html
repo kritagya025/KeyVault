@@ -111,7 +111,10 @@
                         <h2 class="panel__title">Usage</h2>
                         <p class="panel__sub" id="usage-subject">Select a key to view its request history.</p>
                     </div>
-                    <button id="usage-refresh" class="btn btn--ghost btn--sm" hidden>Refresh</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="usage-export" class="btn btn--ghost btn--sm" hidden>Export CSV</button>
+                        <button id="usage-refresh" class="btn btn--ghost btn--sm" hidden>Refresh</button>
+                    </div>
                 </div>
 
                 <div id="usage-body" hidden>
@@ -185,12 +188,31 @@
             <input type="text" name="name" required maxlength="100" placeholder="Production worker">
         </label>
 
+        <label class="field">
+            <span class="field__label">Environment</span>
+            <select name="environment" style="width: 100%; padding: 9px 11px; background: var(--bg-inset); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--text); font: inherit; font-size: 14px;">
+                <option value="DEVELOPMENT">Development</option>
+                <option value="STAGING">Staging</option>
+                <option value="PRODUCTION">Production</option>
+            </select>
+        </label>
+
         <fieldset class="field">
             <legend class="field__label">Permissions</legend>
             <label class="check"><input type="checkbox" name="permissions" value="READ" checked> <span>READ</span></label>
             <label class="check"><input type="checkbox" name="permissions" value="WRITE"> <span>WRITE</span></label>
             <span class="field__hint">Defaults to READ if none selected.</span>
         </fieldset>
+
+        <label class="field">
+            <span class="field__label">Rate Limit <span class="muted">(requests / min, optional)</span></span>
+            <input type="number" name="rateLimit" min="1" placeholder="e.g. 60" style="width: 100%; padding: 9px 11px; background: var(--bg-inset); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); color: var(--text); font: inherit; font-size: 14px;">
+        </label>
+
+        <label class="field">
+            <span class="field__label">IP Restrictions <span class="muted">(comma-separated CIDR/IP, optional)</span></span>
+            <input type="text" name="ipRestrictions" placeholder="e.g. 192.168.1.0/24, 10.0.0.1">
+        </label>
 
         <label class="field">
             <span class="field__label">Expires <span class="muted">(optional)</span></span>

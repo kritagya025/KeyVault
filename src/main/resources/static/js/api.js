@@ -99,6 +99,7 @@ export const api = {
         const searchParams = new URLSearchParams();
         if (params.status) searchParams.set('status', params.status);
         if (params.query) searchParams.set('query', params.query);
+        if (params.environment) searchParams.set('environment', params.environment);
         const qs = searchParams.toString();
         return request('GET', qs ? `/api/keys?${qs}` : '/api/keys');
     },
@@ -115,7 +116,26 @@ export const api = {
 
     regenerateKey: (id) => request('POST', `/api/keys/${id}/regenerate`),
 
+    rotateKey: (id, payload = {}) => request('POST', `/api/keys/${id}/rotate`, { body: payload }),
+
     usageStats: (id) => request('GET', `/api/keys/${id}/usage`),
 
     recentUsage: (id) => request('GET', `/api/keys/${id}/usage/recent`),
+
+    downloadUsageCsv: async (id) => {
+        const bearer = token.get();
+        const headers = {};
+        if (bearer) headers.Authorization = `Bearer ${bearer}`;
+        const res = await fetch(`/api/keys/${id}/usage/export`, { headers });
+        if (!res.ok) throw new ApiError(res.status, 'Failed to export usage CSV');
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `api-key-${id}-usage.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    },
 };

@@ -10,6 +10,7 @@ export function initUsage({ onError }) {
     const log = $('#usage-log');
     const empty = $('#usage-empty');
     const refreshButton = $('#usage-refresh');
+    const exportButton = $('#usage-export');
 
     let activeKey = null;
 
@@ -33,6 +34,7 @@ export function initUsage({ onError }) {
         subject.textContent = `Key: ${key.name}`;
         panel.hidden = false;
         refreshButton.hidden = false;
+        exportButton.hidden = false;
 
         try {
             const [stats, recent] = await Promise.all([
@@ -51,6 +53,15 @@ export function initUsage({ onError }) {
 
     refreshButton.addEventListener('click', () => {
         if (activeKey) load(activeKey);
+    });
+
+    exportButton.addEventListener('click', async () => {
+        if (!activeKey) return;
+        try {
+            await api.downloadUsageCsv(activeKey.id);
+        } catch (error) {
+            onError(error.message);
+        }
     });
 
     // ---- Endpoint tester -----------------------------------------------
