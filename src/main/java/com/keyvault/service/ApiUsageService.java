@@ -127,6 +127,35 @@ public class ApiUsageService {
         return page.map(ApiUsageSummaryResponse::fromEntity);
     }
 
+    @Transactional(readOnly = true)
+    public byte[] exportUsageLogsAsCsv(User user, Long apiKeyId) {
+        verifyApiKeyOwnership(user, apiKeyId);
+        List<ApiUsage> logs = apiUsageRepository.findByApiKeyIdOrderByTimestampDesc(apiKeyId);
+
+        StringBuilder csv = new StringBuilder();
+        csv.append("Timestamp,HTTP Method,Endpoint,Status Code,Success\r\n");
+
+        for (ApiUsage log : logs) {
+            csv.append(escapeCsv(log.getTimestamp() != null ? log.getTimestamp().toString() : "")).append(",")
+               .append(escapeCsv(log.getHttpMethod())).append(",")
+               .append(escapeCsv(log.getEndpoint())).append(",")
+               .append(log.getStatusCode()).append(",")
+               .append(log.isSuccessful()).append("\r\n");
+        }
+
+        return csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private String escapeCsv(String val) {
+        if (val == null) {
+            return "";
+        }
+        if (val.contains(",") || val.contains("\"") || val.contains("\n") || val.contains("\r")) {
+            return "\"" + val.replace("\"", "\"\"") + "\"";
+        }
+        return val;
+    }
+
     private void verifyApiKeyOwnership(User user, Long apiKeyId) {
         ApiKey apiKey = apiKeyRepository.findById(apiKeyId)
                 .orElseThrow(() -> new ResourceNotFoundException("API key not found with id: " + apiKeyId));

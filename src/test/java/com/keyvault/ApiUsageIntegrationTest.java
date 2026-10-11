@@ -128,5 +128,18 @@ public class ApiUsageIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].endpoint").value("/api/protected/read"));
+
+        // Export usage logs as CSV
+        MvcResult csvResult = mockMvc.perform(get("/api/keys/" + keyId + "/usage/export")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Content-Disposition", "attachment; filename=\"api-key-" + keyId + "-usage.csv\""))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Content-Type", org.hamcrest.Matchers.containsString("text/csv")))
+                .andReturn();
+
+        String csvContent = csvResult.getResponse().getContentAsString();
+        org.junit.jupiter.api.Assertions.assertTrue(csvContent.contains("Timestamp,HTTP Method,Endpoint,Status Code,Success"));
+        org.junit.jupiter.api.Assertions.assertTrue(csvContent.contains("/api/protected/read"));
+        org.junit.jupiter.api.Assertions.assertTrue(csvContent.contains("/api/protected/write"));
     }
 }

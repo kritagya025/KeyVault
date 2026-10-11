@@ -167,6 +167,21 @@ public class ApiKeyController {
         return ResponseEntity.ok(page);
     }
 
+    @GetMapping(value = "/{id}/usage/export", produces = "text/csv")
+    @Operation(summary = "Export API Key Usage Logs as CSV", description = "Download full usage history for an API key as a formatted CSV file.")
+    public ResponseEntity<byte[]> exportUsageCsv(
+            Authentication authentication,
+            @PathVariable Long id
+    ) {
+        User user = getUser(authentication);
+        byte[] csvBytes = apiUsageService.exportUsageLogsAsCsv(user, id);
+
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"api-key-" + id + "-usage.csv\"")
+                .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, "text/csv; charset=UTF-8")
+                .body(csvBytes);
+    }
+
     private User getUser(Authentication authentication) {
         return userRepository.findByEmail(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
