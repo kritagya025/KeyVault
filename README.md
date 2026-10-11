@@ -228,10 +228,11 @@ Use the **Authorize** button in Swagger UI to test endpoints:
 
 ## Complete API Endpoints Reference
 
-### 1. Health Check
+### 1. Health Check & Metrics
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/health` | Public | Service health check (`UP`). |
+| `GET` | `/api/health/metrics` | Public | System operational metrics (JVM memory, active threads, available processors, and uptime). |
 
 ### 2. User Authentication & Profile
 | Method | Endpoint | Auth | Description |
@@ -245,22 +246,24 @@ Use the **Authorize** button in Swagger UI to test endpoints:
 ### 3. API Key Management & Usage
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/keys` | JWT | Generate new API key with permissions (e.g. `["READ", "WRITE"]`). Returns raw key once. |
-| `GET` | `/api/keys` | JWT | List API keys owned by current user with optional `?status=ACTIVE` and `?query=name` filters. |
-| `GET` | `/api/keys/summary` | JWT | Get account-level overview metrics (key counts by status, aggregate total/successful/failed requests). |
-| `GET` | `/api/keys/{id}` | JWT | Get single API key metadata, permissions, status, `maskedKey`, and `lastUsedAt`. |
-| `PATCH` | `/api/keys/{id}` | JWT | Update key name, permissions, extend `expiresAt`, or clear expiration (`clearExpiration: true`). |
+| `POST` | `/api/keys` | JWT | Generate new API key with permissions (`READ`, `WRITE`), optional environment (`DEVELOPMENT`, `STAGING`, `PRODUCTION`), IP restrictions, rate limit, and expiry. Returns raw key once. |
+| `GET` | `/api/keys` | JWT | List API keys owned by current user with optional `?status=ACTIVE`, `?query=name`, and `?environment=PRODUCTION` filters. |
+| `GET` | `/api/keys/summary` | JWT | Get account-level overview metrics (key counts by status, expiring-soon keys count, aggregate total/successful/failed requests). |
+| `GET` | `/api/keys/{id}` | JWT | Get single API key metadata, permissions, status, environment, `maskedKey`, `rateLimit`, `ipRestrictions`, `expiringSoon`, and `lastUsedAt`. |
+| `PATCH` | `/api/keys/{id}` | JWT | Update key name, permissions, environment, rate limit, IP restrictions, extend `expiresAt`, or clear expiration. |
 | `PATCH` | `/api/keys/{id}/revoke` | JWT | Revoke an API key immediately (`REVOKED`). |
 | `DELETE` | `/api/keys/{id}` | JWT | Permanently delete API key and its associated usage history. |
 | `POST` | `/api/keys/{id}/regenerate` | JWT | Regenerate an `ACTIVE` or `EXPIRED` key. Issues new raw key once. |
+| `POST` | `/api/keys/{id}/rotate` | JWT | Rotate an API key with zero downtime, giving old key an overlapping grace period (default 24h). |
 | `GET` | `/api/keys/{id}/usage` | JWT | Get aggregate request statistics (`totalRequests`, `successfulRequests`, `failedRequests`, and `requestsByEndpoint`). |
 | `GET` | `/api/keys/{id}/usage/recent` | JWT | Get top 10 recent request log records for an API key. |
-| `GET` | `/api/keys/{id}/usage/logs` | JWT | Query paginated usage logs with optional status filtering (`?page=0&size=20&successful=true`). |
+| `GET` | `/api/keys/{id}/usage/logs` | JWT | Query paginated usage logs with optional status, method, and endpoint filtering (`?page=0&size=20&successful=true&httpMethod=POST&endpoint=read`). |
+| `GET` | `/api/keys/{id}/usage/export` | JWT | Download complete historical usage logs formatted as a standard CSV file. |
 
 ### 4. Protected Consumer APIs
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/protected/hello` | API Key | Basic protected consumer endpoint. |
+| `GET` | `/api/protected/hello` | API Key | Basic protected consumer endpoint. Enforces IP whitelisting and rate limits. |
 | `GET` | `/api/protected/read` | API Key | Consumer read endpoint (Requires `READ` permission). |
 | `POST` | `/api/protected/write` | API Key | Consumer write endpoint (Requires `WRITE` permission). |
 
