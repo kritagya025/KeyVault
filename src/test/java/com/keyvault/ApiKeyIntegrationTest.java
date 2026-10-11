@@ -316,4 +316,54 @@ public class ApiKeyIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.expiringSoonKeys").value(1));
     }
+
+    @Test
+    public void testRotateApiKeyWithGracePeriod() throws Exception {
+        CreateApiKeyRequest createReq = CreateApiKeyRequest.builder()
+                .name("Rotation Target Key")
+                .permissions(Set.of(Permission.READ))
+                .environment(com.keyvault.entity.KeyEnvironment.PRODUCTION)
+                .build();
+
+        MvcResult createResult = mockMvc.perform(post("/api/keys")
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        CreateApiKeyResponse oldKey = objectMapper.readValue(createResult.getResponse().getContentAsString(), CreateApiKeyResponse.class);
+
+        com.keyvault.dto.RotateApiKeyRequest rotateReq = com.keyvault.dto.RotateApiKeyRequest.builder()
+                .gracePeriodHours(48)
+                .build();
+
+        MvcResult rotateResult = mockMvc.perform(post("/api/keys/" + oldKey.getId() + "/rotate")
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(rotateReq)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.apiKey").isNotEmpty())
+                .andExpect(jsonPath("$.environment").value("PRODUCTION"))
+                .andReturn();
+
+        CreateApiKeyResponse newKey = objectMapper.readValue(rotateResult.getResponse().getContentAsString(), CreateApiKeyResponse.class);
+        org.junit.jupiter.api.Assertions.assertNotEquals(oldKey.getId(), newKey.getId());
+
+        // Old key has expiration date assigned (grace period)
+        mockMvc.perform(get("/api/keys/" + oldKey.getId())
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expiresAt").isNotEmpty())
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+
+        // Both keys authenticate successfully during grace period
+        mockMvc.perform(get("/api/protected/read")
+                        .header("X-API-Key", oldKey.getApiKey()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/protected/read")
+                        .header("X-API-Key", newKey.getApiKey()))
+                .andExpect(status().isOk());
+    }
 }

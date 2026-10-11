@@ -260,6 +260,55 @@ public class ApiKeyService {
     }
 
     /**
+     * Issues a replacement API key with identical scopes, restrictions, and environment,
+     * while giving the original key an overlapping grace period for zero-downtime rotation.
+     *
+     * @param user the key owner
+     * @param id the API key id to rotate
+     * @param request rotation options containing grace period in hours
+     * @return creation response containing the newly issued key
+     */
+    @Transactional
+    public CreateApiKeyResponse rotateApiKey(User user, Long id, com.keyvault.dto.RotateApiKeyRequest request) {
+        ApiKey oldKey = findApiKeyAndVerifyOwnership(user, id);
+
+        String currentStatus = ApiKeyResponse.calculateStatus(oldKey);
+        if ("REVOKED".equals(currentStatus)) {
+            throw new IllegalStateException("Cannot rotate a revoked API key");
+        }
+
+        int graceHours = (request != null && request.getGracePeriodHours() != null)
+                ? request.getGracePeriodHours()
+                : 24;
+
+        LocalDateTime oldKeyExpiry = LocalDateTime.now().plusHours(graceHours);
+        if (oldKey.getExpiresAt() == null || oldKey.getExpiresAt().isAfter(oldKeyExpiry)) {
+            oldKey.setExpiresAt(oldKeyExpiry);
+            apiKeyRepository.save(oldKey);
+        }
+
+        String newRawApiKey = apiKeyGenerator.generateRawApiKey();
+        String newKeyHash = apiKeyGenerator.hashApiKey(newRawApiKey);
+        String newMaskedKey = apiKeyGenerator.maskApiKey(newRawApiKey);
+
+        ApiKey newKey = ApiKey.builder()
+                .name(oldKey.getName())
+                .keyHash(newKeyHash)
+                .maskedKey(newMaskedKey)
+                .expiresAt(null)
+                .revoked(false)
+                .user(user)
+                .permissions(new java.util.HashSet<>(oldKey.getPermissions()))
+                .ipRestrictions(new java.util.HashSet<>(oldKey.getIpRestrictions()))
+                .environment(oldKey.getEnvironment())
+                .rateLimit(oldKey.getRateLimit())
+                .build();
+
+        ApiKey savedNewKey = apiKeyRepository.save(newKey);
+        return toCreateResponse(savedNewKey, newRawApiKey);
+    }
+
+    /**
      * Issues a fresh raw key for an existing ACTIVE or EXPIRED key, replacing the stored hash.
      * An EXPIRED key is brought back to ACTIVE by re-anchoring its original validity window
      * from the moment of regeneration, so the newly issued key is immediately usable.

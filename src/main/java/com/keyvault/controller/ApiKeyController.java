@@ -127,6 +127,18 @@ public class ApiKeyController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{id}/rotate")
+    @Operation(summary = "Rotate API Key with Grace Period", description = "Issue a replacement API key with identical metadata while keeping the existing key active for a grace period (default 24 hours).")
+    public ResponseEntity<CreateApiKeyResponse> rotateApiKey(
+            Authentication authentication,
+            @PathVariable Long id,
+            @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody(required = false) com.keyvault.dto.RotateApiKeyRequest request
+    ) {
+        User user = getUser(authentication);
+        CreateApiKeyResponse response = apiKeyService.rotateApiKey(user, id, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     @GetMapping("/{id}/usage")
     @Operation(summary = "Get API Key Usage Statistics", description = "Retrieve aggregate request statistics (total, successful, failed) for an API key owned by the user.")
     public ResponseEntity<ApiUsageStatsResponse> getUsageStats(
