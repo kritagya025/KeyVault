@@ -60,6 +60,10 @@ public class ApiKeyService {
         String keyHash = apiKeyGenerator.hashApiKey(rawApiKey);
         String maskedKey = apiKeyGenerator.maskApiKey(rawApiKey);
 
+        Set<String> ipRestrictions = request.getIpRestrictions() != null
+                ? new java.util.HashSet<>(request.getIpRestrictions())
+                : new java.util.HashSet<>();
+
         ApiKey apiKey = ApiKey.builder()
                 .name(request.getName())
                 .keyHash(keyHash)
@@ -68,6 +72,7 @@ public class ApiKeyService {
                 .revoked(false)
                 .user(user)
                 .permissions(assignedPermissions)
+                .ipRestrictions(ipRestrictions)
                 .build();
 
         ApiKey savedKey = apiKeyRepository.save(apiKey);
@@ -191,6 +196,10 @@ public class ApiKeyService {
             apiKey.setExpiresAt(request.getExpiresAt());
         }
 
+        if (request.getIpRestrictions() != null) {
+            apiKey.setIpRestrictions(new java.util.HashSet<>(request.getIpRestrictions()));
+        }
+
         ApiKey updated = apiKeyRepository.save(apiKey);
         return ApiKeyResponse.fromEntity(updated);
     }
@@ -266,6 +275,7 @@ public class ApiKeyService {
                 .lastUsedAt(apiKey.getLastUsedAt())
                 .revoked(apiKey.isRevoked())
                 .permissions(apiKey.getPermissions())
+                .ipRestrictions(apiKey.getIpRestrictions())
                 .build();
     }
 

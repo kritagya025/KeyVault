@@ -24,4 +24,5 @@ public class CreateApiKeyResponse {
     private LocalDateTime lastUsedAt;
     private boolean revoked;
     private Set<Permission> permissions;
+    private Set<String> ipRestrictions;
 }

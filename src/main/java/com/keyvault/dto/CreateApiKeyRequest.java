@@ -24,4 +24,6 @@ public class CreateApiKeyRequest {
     private LocalDateTime expiresAt;
 
     private Set<Permission> permissions;
+
+    private Set<String> ipRestrictions;
 }

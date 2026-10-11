@@ -16,7 +16,7 @@ public interface ApiKeyRepository extends JpaRepository<ApiKey, Long> {
 
     List<ApiKey> findByUserId(Long userId);
 
-    @Query("SELECT DISTINCT a FROM ApiKey a JOIN FETCH a.user LEFT JOIN FETCH a.permissions WHERE a.keyHash = :keyHash")
+    @Query("SELECT DISTINCT a FROM ApiKey a JOIN FETCH a.user LEFT JOIN FETCH a.permissions LEFT JOIN FETCH a.ipRestrictions WHERE a.keyHash = :keyHash")
     Optional<ApiKey> findByKeyHash(@Param("keyHash") String keyHash);
 
     @Modifying

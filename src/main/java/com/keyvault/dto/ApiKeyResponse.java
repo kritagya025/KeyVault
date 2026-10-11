@@ -25,6 +25,7 @@ public class ApiKeyResponse {
     private boolean revoked;
     private String status;
     private Set<Permission> permissions;
+    private Set<String> ipRestrictions;
 
     public static ApiKeyResponse fromEntity(ApiKey apiKey) {
         return ApiKeyResponse.builder()
@@ -37,6 +38,7 @@ public class ApiKeyResponse {
                 .revoked(apiKey.isRevoked())
                 .status(calculateStatus(apiKey))
                 .permissions(apiKey.getPermissions())
+                .ipRestrictions(apiKey.getIpRestrictions())
                 .build();
     }
 

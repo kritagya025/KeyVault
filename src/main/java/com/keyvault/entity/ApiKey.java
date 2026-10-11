@@ -70,6 +70,12 @@ public class ApiKey {
     @Builder.Default
     private Set<Permission> permissions = new HashSet<>();
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "api_key_ip_restrictions", joinColumns = @JoinColumn(name = "api_key_id"))
+    @Column(name = "ip_restriction")
+    @Builder.Default
+    private Set<String> ipRestrictions = new HashSet<>();
+
     @PrePersist
     protected void onCreate() {
         if (this.createdAt == null) {

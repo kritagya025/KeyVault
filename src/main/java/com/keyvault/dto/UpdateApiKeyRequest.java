@@ -24,4 +24,6 @@ public class UpdateApiKeyRequest {
     private LocalDateTime expiresAt;
 
     private Boolean clearExpiration;
+
+    private Set<String> ipRestrictions;
 }

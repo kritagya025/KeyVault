@@ -151,4 +151,36 @@ public class ApiKeyAuthenticationIntegrationTest {
                         .header("X-API-Key", rawKey))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    public void testIpRestrictedApiKeyAuthentication() throws Exception {
+        CreateApiKeyRequest createReq = CreateApiKeyRequest.builder()
+                .name("IP Resticted Key")
+                .permissions(Set.of(Permission.READ))
+                .ipRestrictions(Set.of("192.168.1.0/24"))
+                .build();
+
+        MvcResult createResult = mockMvc.perform(post("/api/keys")
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createReq)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.ipRestrictions[0]").value("192.168.1.0/24"))
+                .andReturn();
+
+        CreateApiKeyResponse keyResponse = objectMapper.readValue(createResult.getResponse().getContentAsString(), CreateApiKeyResponse.class);
+        String rawApiKey = keyResponse.getApiKey();
+
+        // Allowed IP within CIDR
+        mockMvc.perform(get("/api/protected/hello")
+                        .header("X-API-Key", rawApiKey)
+                        .header("X-Forwarded-For", "192.168.1.42"))
+                .andExpect(status().isOk());
+
+        // Disallowed IP outside CIDR
+        mockMvc.perform(get("/api/protected/hello")
+                        .header("X-API-Key", rawApiKey)
+                        .header("X-Forwarded-For", "10.0.0.99"))
+                .andExpect(status().isUnauthorized());
+    }
 }
