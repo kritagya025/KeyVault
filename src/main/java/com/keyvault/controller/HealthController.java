@@ -22,4 +22,25 @@ public class HealthController {
                 "message", "KeyVault API is running"
         ));
     }
+
+    @GetMapping("/metrics")
+    @Operation(summary = "System Operational Metrics", description = "Returns JVM memory statistics, processor count, active thread count, and uptime.")
+    public ResponseEntity<com.keyvault.dto.SystemMetricsResponse> getMetrics() {
+        Runtime runtime = Runtime.getRuntime();
+        long totalMemory = runtime.totalMemory();
+        long freeMemory = runtime.freeMemory();
+        long usedMemory = totalMemory - freeMemory;
+        long uptime = java.lang.management.ManagementFactory.getRuntimeMXBean().getUptime() / 1000;
+
+        return ResponseEntity.ok(com.keyvault.dto.SystemMetricsResponse.builder()
+                .status("UP")
+                .uptimeSeconds(uptime)
+                .totalMemoryBytes(totalMemory)
+                .freeMemoryBytes(freeMemory)
+                .usedMemoryBytes(usedMemory)
+                .availableProcessors(runtime.availableProcessors())
+                .activeThreads(Thread.activeCount())
+                .timestamp(java.time.LocalDateTime.now())
+                .build());
+    }
 }
