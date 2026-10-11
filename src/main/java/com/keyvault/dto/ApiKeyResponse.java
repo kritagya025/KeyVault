@@ -26,6 +26,7 @@ public class ApiKeyResponse {
     private String status;
     private Set<Permission> permissions;
     private Set<String> ipRestrictions;
+    private com.keyvault.entity.KeyEnvironment environment;
 
     public static ApiKeyResponse fromEntity(ApiKey apiKey) {
         return ApiKeyResponse.builder()
@@ -39,6 +40,7 @@ public class ApiKeyResponse {
                 .status(calculateStatus(apiKey))
                 .permissions(apiKey.getPermissions())
                 .ipRestrictions(apiKey.getIpRestrictions())
+                .environment(apiKey.getEnvironment())
                 .build();
     }
 

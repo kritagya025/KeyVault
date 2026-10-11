@@ -214,6 +214,31 @@ public class ApiKeyIntegrationTest {
                         .header("Authorization", "Bearer " + jwtToken))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").isNotEmpty());
+
+        // Update active key to PRODUCTION environment
+        com.keyvault.dto.UpdateApiKeyRequest envUpdateReq = com.keyvault.dto.UpdateApiKeyRequest.builder()
+                .environment(com.keyvault.entity.KeyEnvironment.PRODUCTION)
+                .build();
+
+        mockMvc.perform(patch("/api/keys/" + activeKey.getId())
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(envUpdateReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.environment").value("PRODUCTION"));
+
+        // Filter by environment PRODUCTION
+        mockMvc.perform(get("/api/keys?environment=PRODUCTION")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(activeKey.getId()));
+
+        // Filter by invalid environment returns 400 Bad Request
+        mockMvc.perform(get("/api/keys?environment=INVALID_ENV")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").isNotEmpty());
     }
 
     @Test

@@ -26,4 +26,6 @@ public class UpdateApiKeyRequest {
     private Boolean clearExpiration;
 
     private Set<String> ipRestrictions;
+
+    private com.keyvault.entity.KeyEnvironment environment;
 }

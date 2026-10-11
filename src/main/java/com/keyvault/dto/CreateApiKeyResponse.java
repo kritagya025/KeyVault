@@ -25,4 +25,5 @@ public class CreateApiKeyResponse {
     private boolean revoked;
     private Set<Permission> permissions;
     private Set<String> ipRestrictions;
+    private com.keyvault.entity.KeyEnvironment environment;
 }

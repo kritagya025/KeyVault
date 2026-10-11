@@ -26,4 +26,6 @@ public class CreateApiKeyRequest {
     private Set<Permission> permissions;
 
     private Set<String> ipRestrictions;
+
+    private com.keyvault.entity.KeyEnvironment environment;
 }

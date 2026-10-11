@@ -64,6 +64,10 @@ public class ApiKeyService {
                 ? new java.util.HashSet<>(request.getIpRestrictions())
                 : new java.util.HashSet<>();
 
+        com.keyvault.entity.KeyEnvironment environment = request.getEnvironment() != null
+                ? request.getEnvironment()
+                : com.keyvault.entity.KeyEnvironment.DEVELOPMENT;
+
         ApiKey apiKey = ApiKey.builder()
                 .name(request.getName())
                 .keyHash(keyHash)
@@ -73,6 +77,7 @@ public class ApiKeyService {
                 .user(user)
                 .permissions(assignedPermissions)
                 .ipRestrictions(ipRestrictions)
+                .environment(environment)
                 .build();
 
         ApiKey savedKey = apiKeyRepository.save(apiKey);
@@ -82,11 +87,16 @@ public class ApiKeyService {
 
     @Transactional(readOnly = true)
     public List<ApiKeyResponse> getUserApiKeys(User user) {
-        return getUserApiKeys(user, null, null);
+        return getUserApiKeys(user, null, null, null);
     }
 
     @Transactional(readOnly = true)
     public List<ApiKeyResponse> getUserApiKeys(User user, String status, String query) {
+        return getUserApiKeys(user, status, query, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ApiKeyResponse> getUserApiKeys(User user, String status, String query, String environment) {
         List<ApiKey> keys = apiKeyRepository.findByUserId(user.getId());
 
         if (status != null && !status.trim().isEmpty()) {
@@ -103,6 +113,19 @@ public class ApiKeyService {
             String lowerQuery = query.trim().toLowerCase();
             keys = keys.stream()
                     .filter(key -> key.getName() != null && key.getName().toLowerCase().contains(lowerQuery))
+                    .toList();
+        }
+
+        if (environment != null && !environment.trim().isEmpty()) {
+            String normalizedEnv = environment.trim().toUpperCase();
+            com.keyvault.entity.KeyEnvironment targetEnv;
+            try {
+                targetEnv = com.keyvault.entity.KeyEnvironment.valueOf(normalizedEnv);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid environment filter: " + environment + ". Allowed values: DEVELOPMENT, STAGING, PRODUCTION");
+            }
+            keys = keys.stream()
+                    .filter(key -> key.getEnvironment() == targetEnv)
                     .toList();
         }
 
@@ -200,6 +223,10 @@ public class ApiKeyService {
             apiKey.setIpRestrictions(new java.util.HashSet<>(request.getIpRestrictions()));
         }
 
+        if (request.getEnvironment() != null) {
+            apiKey.setEnvironment(request.getEnvironment());
+        }
+
         ApiKey updated = apiKeyRepository.save(apiKey);
         return ApiKeyResponse.fromEntity(updated);
     }
@@ -276,6 +303,7 @@ public class ApiKeyService {
                 .revoked(apiKey.isRevoked())
                 .permissions(apiKey.getPermissions())
                 .ipRestrictions(apiKey.getIpRestrictions())
+                .environment(apiKey.getEnvironment())
                 .build();
     }
 

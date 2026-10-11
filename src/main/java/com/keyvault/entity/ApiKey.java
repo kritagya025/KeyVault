@@ -59,6 +59,11 @@ public class ApiKey {
     @Builder.Default
     private boolean revoked = false;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "environment", nullable = false)
+    @Builder.Default
+    private KeyEnvironment environment = KeyEnvironment.DEVELOPMENT;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
