@@ -79,10 +79,46 @@ public class ApiUsageService {
             Boolean successful,
             org.springframework.data.domain.Pageable pageable
     ) {
+        return getPaginatedUsage(user, apiKeyId, successful, null, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<ApiUsageSummaryResponse> getPaginatedUsage(
+            User user,
+            Long apiKeyId,
+            Boolean successful,
+            String httpMethod,
+            String endpoint,
+            org.springframework.data.domain.Pageable pageable
+    ) {
         verifyApiKeyOwnership(user, apiKeyId);
 
+        boolean hasMethod = httpMethod != null && !httpMethod.trim().isEmpty();
+        boolean hasEndpoint = endpoint != null && !endpoint.trim().isEmpty();
+
         org.springframework.data.domain.Page<ApiUsage> page;
-        if (successful != null) {
+
+        if (hasMethod || hasEndpoint) {
+            org.springframework.data.jpa.domain.Specification<ApiUsage> spec = (root, query, cb) -> {
+                java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+                predicates.add(cb.equal(root.get("apiKey").get("id"), apiKeyId));
+
+                if (successful != null) {
+                    predicates.add(cb.equal(root.get("successful"), successful));
+                }
+
+                if (hasMethod) {
+                    predicates.add(cb.equal(cb.upper(root.get("httpMethod")), httpMethod.trim().toUpperCase()));
+                }
+
+                if (hasEndpoint) {
+                    predicates.add(cb.like(cb.lower(root.get("endpoint")), "%" + endpoint.trim().toLowerCase() + "%"));
+                }
+
+                return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+            };
+            page = apiUsageRepository.findAll(spec, pageable);
+        } else if (successful != null) {
             page = apiUsageRepository.findByApiKeyIdAndSuccessful(apiKeyId, successful, pageable);
         } else {
             page = apiUsageRepository.findByApiKeyId(apiKeyId, pageable);

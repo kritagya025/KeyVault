@@ -113,5 +113,20 @@ public class ApiUsageIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].statusCode").value(200));
+
+        // Filter by HTTP method POST
+        mockMvc.perform(get("/api/keys/" + keyId + "/usage/logs?page=0&size=10&httpMethod=POST")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].method").value("POST"))
+                .andExpect(jsonPath("$.content[0].statusCode").value(403));
+
+        // Filter by endpoint substring "read"
+        mockMvc.perform(get("/api/keys/" + keyId + "/usage/logs?page=0&size=10&endpoint=read")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].endpoint").value("/api/protected/read"));
     }
 }

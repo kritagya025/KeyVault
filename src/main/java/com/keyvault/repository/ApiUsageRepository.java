@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface ApiUsageRepository extends JpaRepository<ApiUsage, Long> {
+public interface ApiUsageRepository extends JpaRepository<ApiUsage, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<ApiUsage> {
 
     long countByApiKeyId(Long apiKeyId);
 

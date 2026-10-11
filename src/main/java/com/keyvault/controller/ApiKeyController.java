@@ -150,17 +150,20 @@ public class ApiKeyController {
     }
 
     @GetMapping("/{id}/usage/logs")
-    @Operation(summary = "Get Paginated API Key Usage Logs", description = "Query paginated usage logs for an API key, with optional filtering by success status.")
+    @Operation(summary = "Get Paginated API Key Usage Logs", description = "Query paginated usage logs for an API key, with optional filtering by success status, HTTP method, and endpoint.")
     public ResponseEntity<org.springframework.data.domain.Page<ApiUsageSummaryResponse>> getPaginatedUsage(
             Authentication authentication,
             @PathVariable Long id,
             @org.springframework.web.bind.annotation.RequestParam(required = false) Boolean successful,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String httpMethod,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String endpoint,
             @org.springdoc.core.annotations.ParameterObject
             @org.springframework.data.web.PageableDefault(size = 20, sort = "timestamp", direction = org.springframework.data.domain.Sort.Direction.DESC)
             org.springframework.data.domain.Pageable pageable
     ) {
         User user = getUser(authentication);
-        org.springframework.data.domain.Page<ApiUsageSummaryResponse> page = apiUsageService.getPaginatedUsage(user, id, successful, pageable);
+        org.springframework.data.domain.Page<ApiUsageSummaryResponse> page =
+                apiUsageService.getPaginatedUsage(user, id, successful, httpMethod, endpoint, pageable);
         return ResponseEntity.ok(page);
     }
 
