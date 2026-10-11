@@ -15,6 +15,7 @@ public class ApiKeyOverviewResponse {
     private long activeKeys;
     private long revokedKeys;
     private long expiredKeys;
+    private long expiringSoonKeys;
     private long totalRequests;
     private long successfulRequests;
     private long failedRequests;

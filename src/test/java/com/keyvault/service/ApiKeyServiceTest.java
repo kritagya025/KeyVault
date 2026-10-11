@@ -369,6 +369,7 @@ class ApiKeyServiceTest {
         assertEquals(1L, summary.getActiveKeys());
         assertEquals(1L, summary.getRevokedKeys());
         assertEquals(1L, summary.getExpiredKeys());
+        assertEquals(0L, summary.getExpiringSoonKeys());
         assertEquals(50L, summary.getTotalRequests());
         assertEquals(45L, summary.getSuccessfulRequests());
         assertEquals(5L, summary.getFailedRequests());

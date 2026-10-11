@@ -27,8 +27,21 @@ public class ApiKeyResponse {
     private Set<Permission> permissions;
     private Set<String> ipRestrictions;
     private com.keyvault.entity.KeyEnvironment environment;
+    private boolean expiringSoon;
+    private Long daysUntilExpiration;
 
     public static ApiKeyResponse fromEntity(ApiKey apiKey) {
+        boolean isExpiringSoon = false;
+        Long daysRemaining = null;
+        if (apiKey.getExpiresAt() != null) {
+            LocalDateTime now = LocalDateTime.now();
+            long days = java.time.Duration.between(now, apiKey.getExpiresAt()).toDays();
+            daysRemaining = days;
+            if (!apiKey.isRevoked() && apiKey.getExpiresAt().isAfter(now) && days <= 7) {
+                isExpiringSoon = true;
+            }
+        }
+
         return ApiKeyResponse.builder()
                 .id(apiKey.getId())
                 .name(apiKey.getName())
@@ -41,6 +54,8 @@ public class ApiKeyResponse {
                 .permissions(apiKey.getPermissions())
                 .ipRestrictions(apiKey.getIpRestrictions())
                 .environment(apiKey.getEnvironment())
+                .expiringSoon(isExpiringSoon)
+                .daysUntilExpiration(daysRemaining)
                 .build();
     }
 

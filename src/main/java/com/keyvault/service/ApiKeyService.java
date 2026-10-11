@@ -141,11 +141,18 @@ public class ApiKeyService {
         long activeKeys = 0;
         long revokedKeys = 0;
         long expiredKeys = 0;
+        long expiringSoonKeys = 0;
+        LocalDateTime now = LocalDateTime.now();
 
         for (ApiKey key : keys) {
             String status = ApiKeyResponse.calculateStatus(key);
             switch (status) {
-                case "ACTIVE" -> activeKeys++;
+                case "ACTIVE" -> {
+                    activeKeys++;
+                    if (key.getExpiresAt() != null && key.getExpiresAt().isAfter(now) && java.time.Duration.between(now, key.getExpiresAt()).toDays() <= 7) {
+                        expiringSoonKeys++;
+                    }
+                }
                 case "REVOKED" -> revokedKeys++;
                 case "EXPIRED" -> expiredKeys++;
             }
@@ -160,6 +167,7 @@ public class ApiKeyService {
                 .activeKeys(activeKeys)
                 .revokedKeys(revokedKeys)
                 .expiredKeys(expiredKeys)
+                .expiringSoonKeys(expiringSoonKeys)
                 .totalRequests(totalRequests)
                 .successfulRequests(successfulRequests)
                 .failedRequests(failedRequests)

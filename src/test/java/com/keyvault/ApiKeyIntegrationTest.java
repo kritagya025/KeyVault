@@ -284,8 +284,36 @@ public class ApiKeyIntegrationTest {
                 .andExpect(jsonPath("$.activeKeys").value(1))
                 .andExpect(jsonPath("$.revokedKeys").value(1))
                 .andExpect(jsonPath("$.expiredKeys").value(0))
+                .andExpect(jsonPath("$.expiringSoonKeys").value(0))
                 .andExpect(jsonPath("$.totalRequests").value(1))
                 .andExpect(jsonPath("$.successfulRequests").value(1))
                 .andExpect(jsonPath("$.failedRequests").value(0));
+
+        // Create a key expiring in 3 days
+        CreateApiKeyRequest expiringReq = CreateApiKeyRequest.builder()
+                .name("Expiring Soon Key")
+                .permissions(Set.of(Permission.READ))
+                .expiresAt(java.time.LocalDateTime.now().plusDays(3))
+                .build();
+
+        MvcResult expiringResult = mockMvc.perform(post("/api/keys")
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(expiringReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        CreateApiKeyResponse expiringKey = objectMapper.readValue(expiringResult.getResponse().getContentAsString(), CreateApiKeyResponse.class);
+
+        mockMvc.perform(get("/api/keys/" + expiringKey.getId())
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expiringSoon").value(true))
+                .andExpect(jsonPath("$.daysUntilExpiration").value(2));
+
+        mockMvc.perform(get("/api/keys/summary")
+                        .header("Authorization", "Bearer " + jwtToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expiringSoonKeys").value(1));
     }
 }
