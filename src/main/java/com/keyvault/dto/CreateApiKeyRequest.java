@@ -28,4 +28,7 @@ public class CreateApiKeyRequest {
     private Set<String> ipRestrictions;
 
     private com.keyvault.entity.KeyEnvironment environment;
+
+    @jakarta.validation.constraints.Positive(message = "Rate limit must be greater than 0")
+    private Integer rateLimit;
 }

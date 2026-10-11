@@ -78,6 +78,7 @@ public class ApiKeyService {
                 .permissions(assignedPermissions)
                 .ipRestrictions(ipRestrictions)
                 .environment(environment)
+                .rateLimit(request.getRateLimit())
                 .build();
 
         ApiKey savedKey = apiKeyRepository.save(apiKey);
@@ -235,6 +236,12 @@ public class ApiKeyService {
             apiKey.setEnvironment(request.getEnvironment());
         }
 
+        if (Boolean.TRUE.equals(request.getClearRateLimit())) {
+            apiKey.setRateLimit(null);
+        } else if (request.getRateLimit() != null) {
+            apiKey.setRateLimit(request.getRateLimit());
+        }
+
         ApiKey updated = apiKeyRepository.save(apiKey);
         return ApiKeyResponse.fromEntity(updated);
     }
@@ -312,6 +319,7 @@ public class ApiKeyService {
                 .permissions(apiKey.getPermissions())
                 .ipRestrictions(apiKey.getIpRestrictions())
                 .environment(apiKey.getEnvironment())
+                .rateLimit(apiKey.getRateLimit())
                 .build();
     }
 

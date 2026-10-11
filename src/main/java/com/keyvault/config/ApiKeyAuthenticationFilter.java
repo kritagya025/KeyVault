@@ -32,6 +32,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     private final ApiKeyRepository apiKeyRepository;
     private final ApiKeyGenerator apiKeyGenerator;
+    private final com.keyvault.service.RateLimiterService rateLimiterService;
 
     @Override
     protected void doFilterInternal(
@@ -80,6 +81,22 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     request.setAttribute(AUTHENTICATED_API_KEY_ATTR, apiKey);
+
+                    if (apiKey.getRateLimit() != null && apiKey.getRateLimit() > 0) {
+                        com.keyvault.service.RateLimiterService.RateLimitResult rateResult =
+                                rateLimiterService.checkAndConsume(apiKey.getId(), apiKey.getRateLimit());
+
+                        response.setHeader("X-RateLimit-Limit", String.valueOf(rateResult.getLimit()));
+                        response.setHeader("X-RateLimit-Remaining", String.valueOf(rateResult.getRemaining()));
+                        response.setHeader("X-RateLimit-Reset", String.valueOf(rateResult.getResetSeconds()));
+
+                        if (!rateResult.isAllowed()) {
+                            response.setStatus(429);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"error\":\"Rate limit exceeded. Try again in " + rateResult.getResetSeconds() + " seconds.\"}");
+                            return;
+                        }
+                    }
                 }
             }
         }

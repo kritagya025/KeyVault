@@ -183,4 +183,43 @@ public class ApiKeyAuthenticationIntegrationTest {
                         .header("X-Forwarded-For", "10.0.0.99"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    public void testRateLimitingApiKeyAuthentication() throws Exception {
+        CreateApiKeyRequest createReq = CreateApiKeyRequest.builder()
+                .name("Rate Limited Key")
+                .permissions(Set.of(Permission.READ))
+                .rateLimit(2)
+                .build();
+
+        MvcResult createResult = mockMvc.perform(post("/api/keys")
+                        .header("Authorization", "Bearer " + jwtToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createReq)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.rateLimit").value(2))
+                .andReturn();
+
+        CreateApiKeyResponse keyResponse = objectMapper.readValue(createResult.getResponse().getContentAsString(), CreateApiKeyResponse.class);
+        String rawApiKey = keyResponse.getApiKey();
+
+        // 1st request -> ok, remaining 1
+        mockMvc.perform(get("/api/protected/hello")
+                        .header("X-API-Key", rawApiKey))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("X-RateLimit-Limit", "2"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("X-RateLimit-Remaining", "1"));
+
+        // 2nd request -> ok, remaining 0
+        mockMvc.perform(get("/api/protected/hello")
+                        .header("X-API-Key", rawApiKey))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("X-RateLimit-Remaining", "0"));
+
+        // 3rd request -> 429 Too Many Requests
+        mockMvc.perform(get("/api/protected/hello")
+                        .header("X-API-Key", rawApiKey))
+                .andExpect(status().is(429))
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("Rate limit exceeded")));
+    }
 }

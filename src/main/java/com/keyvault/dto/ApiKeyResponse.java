@@ -29,6 +29,7 @@ public class ApiKeyResponse {
     private com.keyvault.entity.KeyEnvironment environment;
     private boolean expiringSoon;
     private Long daysUntilExpiration;
+    private Integer rateLimit;
 
     public static ApiKeyResponse fromEntity(ApiKey apiKey) {
         boolean isExpiringSoon = false;
@@ -56,6 +57,7 @@ public class ApiKeyResponse {
                 .environment(apiKey.getEnvironment())
                 .expiringSoon(isExpiringSoon)
                 .daysUntilExpiration(daysRemaining)
+                .rateLimit(apiKey.getRateLimit())
                 .build();
     }
 

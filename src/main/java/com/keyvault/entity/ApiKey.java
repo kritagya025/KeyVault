@@ -64,6 +64,9 @@ public class ApiKey {
     @Builder.Default
     private KeyEnvironment environment = KeyEnvironment.DEVELOPMENT;
 
+    @Column(name = "rate_limit")
+    private Integer rateLimit;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
