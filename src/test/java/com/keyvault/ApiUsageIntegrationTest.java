@@ -105,20 +105,20 @@ public class ApiUsageIntegrationTest {
         mockMvc.perform(get("/api/keys/" + keyId + "/usage/logs?page=0&size=10")
                         .header("Authorization", "Bearer " + jwtToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.page.totalElements").value(2))
                 .andExpect(jsonPath("$.content.length()").value(2));
 
         mockMvc.perform(get("/api/keys/" + keyId + "/usage/logs?page=0&size=10&successful=true")
                         .header("Authorization", "Bearer " + jwtToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.page.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].statusCode").value(200));
 
         // Filter by HTTP method POST
         mockMvc.perform(get("/api/keys/" + keyId + "/usage/logs?page=0&size=10&httpMethod=POST")
                         .header("Authorization", "Bearer " + jwtToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.page.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].method").value("POST"))
                 .andExpect(jsonPath("$.content[0].statusCode").value(403));
 
@@ -126,7 +126,7 @@ public class ApiUsageIntegrationTest {
         mockMvc.perform(get("/api/keys/" + keyId + "/usage/logs?page=0&size=10&endpoint=read")
                         .header("Authorization", "Bearer " + jwtToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.page.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].endpoint").value("/api/protected/read"));
 
         // Export usage logs as CSV
