@@ -100,6 +100,7 @@ export const api = {
         if (params.status) searchParams.set('status', params.status);
         if (params.query) searchParams.set('query', params.query);
         if (params.environment) searchParams.set('environment', params.environment);
+        if (params.tag) searchParams.set('tag', params.tag);
         const qs = searchParams.toString();
         return request('GET', qs ? `/api/keys?${qs}` : '/api/keys');
     },
@@ -114,6 +115,12 @@ export const api = {
 
     revokeKey: (id) => request('PATCH', `/api/keys/${id}/revoke`),
 
+    bulkRevokeKeys: (keyIds) => request('POST', '/api/keys/bulk-revoke', { body: { keyIds } }),
+
+    bulkDeleteKeys: (keyIds) => request('POST', '/api/keys/bulk-delete', { body: { keyIds } }),
+
+    auditLogsForKey: (id) => request('GET', `/api/keys/${id}/audit-logs`),
+
     regenerateKey: (id) => request('POST', `/api/keys/${id}/regenerate`),
 
     rotateKey: (id, payload = {}) => request('POST', `/api/keys/${id}/rotate`, { body: payload }),
@@ -121,6 +128,8 @@ export const api = {
     usageStats: (id) => request('GET', `/api/keys/${id}/usage`),
 
     recentUsage: (id) => request('GET', `/api/keys/${id}/usage/recent`),
+
+    clearUsageLogs: (id, beforeDate) => request('DELETE', `/api/keys/${id}/usage/logs${beforeDate ? '?beforeDate=' + encodeURIComponent(beforeDate) : ''}`),
 
     downloadUsageCsv: async (id) => {
         const bearer = token.get();

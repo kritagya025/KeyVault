@@ -11,6 +11,7 @@ export function initUsage({ onError }) {
     const empty = $('#usage-empty');
     const refreshButton = $('#usage-refresh');
     const exportButton = $('#usage-export');
+    const clearButton = $('#usage-clear');
 
     let activeKey = null;
 
@@ -35,6 +36,7 @@ export function initUsage({ onError }) {
         panel.hidden = false;
         refreshButton.hidden = false;
         exportButton.hidden = false;
+        clearButton.hidden = false;
 
         try {
             const [stats, recent] = await Promise.all([
@@ -50,6 +52,16 @@ export function initUsage({ onError }) {
             onError(error.message);
         }
     }
+
+    clearButton.addEventListener('click', async () => {
+        if (!activeKey) return;
+        try {
+            await api.clearUsageLogs(activeKey.id);
+            await load(activeKey);
+        } catch (error) {
+            onError(error.message);
+        }
+    });
 
     refreshButton.addEventListener('click', () => {
         if (activeKey) load(activeKey);
@@ -107,6 +119,7 @@ export function initUsage({ onError }) {
         activeKey = null;
         panel.hidden = true;
         refreshButton.hidden = true;
+        clearButton.hidden = true;
         subject.textContent = 'Select a key to view its request history.';
         output.hidden = true;
         $('#test-key').value = '';

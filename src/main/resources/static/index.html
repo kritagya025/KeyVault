@@ -85,10 +85,17 @@
                 <button id="new-key-btn" class="btn btn--primary btn--sm">New key</button>
             </div>
 
+            <div id="bulk-bar" class="bulk-bar" hidden>
+                <span id="bulk-count">0 keys selected</span>
+                <button id="bulk-revoke-btn" class="btn btn--danger btn--sm">Revoke selected</button>
+                <button id="bulk-delete-btn" class="btn btn--danger btn--sm">Delete selected</button>
+            </div>
+
             <div class="table-wrap">
                 <table class="table">
                     <thead>
                     <tr>
+                        <th style="width: 32px;"><input type="checkbox" id="keys-select-all" title="Select all keys"></th>
                         <th>Name</th>
                         <th>Status</th>
                         <th>Permissions</th>
@@ -112,6 +119,7 @@
                         <p class="panel__sub" id="usage-subject">Select a key to view its request history.</p>
                     </div>
                     <div class="panel__actions">
+                        <button id="usage-clear" class="btn btn--ghost btn--sm" hidden>Clear logs</button>
                         <button id="usage-export" class="btn btn--ghost btn--sm" hidden>Export CSV</button>
                         <button id="usage-refresh" class="btn btn--ghost btn--sm" hidden>Refresh</button>
                     </div>
@@ -189,6 +197,16 @@
         </label>
 
         <label class="field">
+            <span class="field__label">Description <span class="muted">(optional)</span></span>
+            <input type="text" name="description" maxlength="500" placeholder="e.g. Ingestion service token">
+        </label>
+
+        <label class="field">
+            <span class="field__label">Tags <span class="muted">(comma-separated, optional)</span></span>
+            <input type="text" name="tags" placeholder="e.g. backend, data, v2">
+        </label>
+
+        <label class="field">
             <span class="field__label">Environment</span>
             <select name="environment">
                 <option value="DEVELOPMENT">Development</option>
@@ -242,6 +260,17 @@
     </div>
     <div class="dialog__actions">
         <button type="button" class="btn btn--ghost" data-close-dialog>I have saved it</button>
+    </div>
+</dialog>
+
+<!-- ========================= Audit Log Dialog ========================= -->
+<dialog id="audit-dialog" class="dialog">
+    <h2 class="dialog__title" id="audit-title">Audit History</h2>
+    <p class="panel__sub" id="audit-subtitle">Immutable lifecycle trail for this key.</p>
+    <ul id="audit-list" class="audit-list"></ul>
+    <p id="audit-empty" class="empty" hidden>No audit records found.</p>
+    <div class="dialog__actions">
+        <button type="button" class="btn btn--ghost" data-close-dialog>Close</button>
     </div>
 </dialog>
 

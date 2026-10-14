@@ -1,7 +1,7 @@
 /** API key table, creation dialog, and lifecycle actions. */
 
 import { api, ApiError } from './api.js';
-import { $, el, showError, clearError, formatDateTime, toLocalDateTime } from './dom.js';
+import { $, el, showError, clearError, formatDateTime, formatRelative, toLocalDateTime } from './dom.js';
 
 const BADGE_CLASS = {
     ACTIVE: 'badge badge--active',
@@ -60,8 +60,69 @@ export function initKeys({ onSelect, onError }) {
     const createForm = $('#create-form');
     const createError = $('#create-error');
     const revealDialog = $('#reveal-dialog');
+    const auditDialog = $('#audit-dialog');
+    const auditList = $('#audit-list');
+    const auditEmpty = $('#audit-empty');
+    const auditSubtitle = $('#audit-subtitle');
+
+    const selectAllCheckbox = $('#keys-select-all');
+    const bulkBar = $('#bulk-bar');
+    const bulkCount = $('#bulk-count');
+    const bulkRevokeBtn = $('#bulk-revoke-btn');
+    const bulkDeleteBtn = $('#bulk-delete-btn');
 
     let selectedId = null;
+    let selectedKeyIds = new Set();
+    let currentKeys = [];
+
+    function updateBulkBar() {
+        if (selectedKeyIds.size > 0) {
+            bulkBar.hidden = false;
+            bulkCount.textContent = `${selectedKeyIds.size} key${selectedKeyIds.size > 1 ? 's' : ''} selected`;
+        } else {
+            bulkBar.hidden = true;
+        }
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = currentKeys.length > 0 && selectedKeyIds.size === currentKeys.length;
+        }
+    }
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', () => {
+            if (selectAllCheckbox.checked) {
+                currentKeys.forEach(k => selectedKeyIds.add(k.id));
+            } else {
+                selectedKeyIds.clear();
+            }
+            render(currentKeys);
+        });
+    }
+
+    if (bulkRevokeBtn) {
+        bulkRevokeBtn.addEventListener('click', async () => {
+            if (selectedKeyIds.size === 0) return;
+            try {
+                await api.bulkRevokeKeys(Array.from(selectedKeyIds));
+                selectedKeyIds.clear();
+                await refresh();
+            } catch (err) {
+                onError(err.message);
+            }
+        });
+    }
+
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.addEventListener('click', async () => {
+            if (selectedKeyIds.size === 0) return;
+            try {
+                await api.bulkDeleteKeys(Array.from(selectedKeyIds));
+                selectedKeyIds.clear();
+                await refresh();
+            } catch (err) {
+                onError(err.message);
+            }
+        });
+    }
 
     function reveal(title, rawKey) {
         $('#reveal-title').textContent = title;
@@ -74,7 +135,6 @@ export function initKeys({ onSelect, onError }) {
                 await navigator.clipboard.writeText(rawKey);
                 copyButton.textContent = 'Copied';
             } catch {
-                // Clipboard access needs a secure context; the key stays selectable either way.
                 copyButton.textContent = 'Select it manually';
             }
         };
@@ -82,20 +142,81 @@ export function initKeys({ onSelect, onError }) {
         revealDialog.showModal();
     }
 
+    async function showAuditLogs(key) {
+        auditSubtitle.textContent = `Audit trail for "${key.name}" (ID #${key.id})`;
+        auditList.replaceChildren();
+        auditEmpty.hidden = true;
+        auditDialog.showModal();
+
+        try {
+            const logs = await api.auditLogsForKey(key.id);
+            if (!logs || logs.length === 0) {
+                auditEmpty.hidden = false;
+                return;
+            }
+
+            auditList.replaceChildren(...logs.map(log => {
+                const li = el('li', { className: 'audit-item' });
+                const top = el('div', { className: 'audit-item__top' });
+                top.append(el('span', { className: 'audit-action', text: log.action }));
+                top.append(el('span', { className: 'audit-time', text: formatDateTime(log.timestamp) }));
+                li.append(top);
+                if (log.details) {
+                    li.append(el('div', { className: 'audit-details', text: log.details }));
+                }
+                return li;
+            }));
+        } catch (err) {
+            auditEmpty.hidden = false;
+            auditEmpty.textContent = `Error loading audit logs: ${err.message}`;
+        }
+    }
+
     function buildRow(key) {
         const row = el('tr');
         if (key.id === selectedId) row.classList.add('is-selected');
 
+        // Checkbox column
+        const checkCell = el('td');
+        const cb = el('input', { type: 'checkbox' });
+        cb.checked = selectedKeyIds.has(key.id);
+        cb.addEventListener('change', () => {
+            if (cb.checked) {
+                selectedKeyIds.add(key.id);
+            } else {
+                selectedKeyIds.delete(key.id);
+            }
+            updateBulkBar();
+        });
+        checkCell.append(cb);
+        row.append(checkCell);
+
+        // Name, description & tags
         const nameCell = el('td', { className: 'table__name' });
-        nameCell.append(el('span', { text: key.name }));
+        const nameWrap = el('div');
+        nameWrap.append(el('strong', { text: key.name }));
         if (key.maskedKey) {
             const code = el('code', { className: 'perm', text: key.maskedKey });
             code.style.marginLeft = '8px';
             code.style.fontSize = '0.75rem';
-            nameCell.append(code);
+            nameWrap.append(code);
+        }
+        nameCell.append(nameWrap);
+
+        if (key.description) {
+            nameCell.append(el('div', { className: 'key-desc', text: key.description }));
+        }
+
+        if (key.tags && key.tags.length > 0) {
+            const tagsWrap = el('div');
+            key.tags.forEach(tag => {
+                tagsWrap.append(el('span', { className: 'badge--tag', text: `#${tag}` }));
+            });
+            nameCell.append(tagsWrap);
         }
         row.append(nameCell);
 
+        // Status
         const status = el('td');
         if (key.environment) {
             const envClass = key.environment === 'PRODUCTION' ? 'badge--prod' :
@@ -115,6 +236,7 @@ export function initKeys({ onSelect, onError }) {
         }
         row.append(status);
 
+        // Permissions & rate limit
         const perms = el('td');
         (key.permissions ?? []).forEach((p) => perms.append(el('span', { className: 'perm', text: p })));
         if (key.rateLimit) {
@@ -127,6 +249,7 @@ export function initKeys({ onSelect, onError }) {
         row.append(el('td', { className: 'cell-time', text: formatDateTime(key.createdAt) }));
         row.append(el('td', { className: 'cell-time', text: key.expiresAt ? formatDateTime(key.expiresAt) : 'Never' }));
 
+        // Actions
         const actions = el('td');
         const group = el('div', { className: 'table__actions' });
 
@@ -137,6 +260,12 @@ export function initKeys({ onSelect, onError }) {
             onSelect(key);
         });
         group.append(usageButton);
+
+        const auditButton = el('button', { className: 'btn btn--ghost btn--sm', text: 'Audit' });
+        auditButton.addEventListener('click', () => {
+            showAuditLogs(key);
+        });
+        group.append(auditButton);
 
         if (key.status !== 'REVOKED') {
             group.append(armable(
@@ -190,6 +319,7 @@ export function initKeys({ onSelect, onError }) {
                     if (selectedId === key.id) {
                         selectedId = null;
                     }
+                    selectedKeyIds.delete(key.id);
                     await refresh();
                 } catch (error) {
                     onError(error.message);
@@ -202,17 +332,15 @@ export function initKeys({ onSelect, onError }) {
         return row;
     }
 
-    let currentKeys = [];
-
     function render(keys) {
         currentKeys = keys;
         body.replaceChildren(...keys.map(buildRow));
         empty.hidden = keys.length > 0;
+        updateBulkBar();
     }
 
     async function refresh() {
         const keys = await api.listKeys();
-        // Newest first reads better than the repository's insertion order.
         keys.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
         render(keys);
         return keys;
@@ -240,6 +368,14 @@ export function initKeys({ onSelect, onError }) {
             name: (data.get('name') ?? '').trim(),
             permissions: permissions.length ? permissions : ['READ'],
         };
+
+        const description = (data.get('description') ?? '').trim();
+        if (description) payload.description = description;
+
+        const tagsVal = (data.get('tags') ?? '').trim();
+        if (tagsVal) {
+            payload.tags = tagsVal.split(',').map(s => s.trim().replace(/^#/, '')).filter(Boolean);
+        }
 
         const environment = data.get('environment');
         if (environment) payload.environment = environment;
