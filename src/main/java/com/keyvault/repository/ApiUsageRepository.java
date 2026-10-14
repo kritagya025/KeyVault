@@ -41,5 +41,9 @@ public interface ApiUsageRepository extends JpaRepository<ApiUsage, Long>, org.s
 
     @Modifying
     @Query("DELETE FROM ApiUsage u WHERE u.apiKey.id = :apiKeyId")
-    void deleteByApiKeyId(@Param("apiKeyId") Long apiKeyId);
+    int deleteByApiKeyId(@Param("apiKeyId") Long apiKeyId);
+
+    @Modifying
+    @Query("DELETE FROM ApiUsage u WHERE u.apiKey.id = :apiKeyId AND u.timestamp < :beforeDate")
+    int deleteByApiKeyIdAndTimestampBefore(@Param("apiKeyId") Long apiKeyId, @Param("beforeDate") java.time.LocalDateTime beforeDate);
 }

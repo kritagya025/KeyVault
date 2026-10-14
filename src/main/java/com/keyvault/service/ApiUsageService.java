@@ -91,14 +91,29 @@ public class ApiUsageService {
             String endpoint,
             org.springframework.data.domain.Pageable pageable
     ) {
+        return getPaginatedUsage(user, apiKeyId, successful, httpMethod, endpoint, null, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<ApiUsageSummaryResponse> getPaginatedUsage(
+            User user,
+            Long apiKeyId,
+            Boolean successful,
+            String httpMethod,
+            String endpoint,
+            java.time.LocalDateTime startDate,
+            java.time.LocalDateTime endDate,
+            org.springframework.data.domain.Pageable pageable
+    ) {
         verifyApiKeyOwnership(user, apiKeyId);
 
         boolean hasMethod = httpMethod != null && !httpMethod.trim().isEmpty();
         boolean hasEndpoint = endpoint != null && !endpoint.trim().isEmpty();
+        boolean hasDateFilter = startDate != null || endDate != null;
 
         org.springframework.data.domain.Page<ApiUsage> page;
 
-        if (hasMethod || hasEndpoint) {
+        if (hasMethod || hasEndpoint || hasDateFilter) {
             org.springframework.data.jpa.domain.Specification<ApiUsage> spec = (root, query, cb) -> {
                 java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
                 predicates.add(cb.equal(root.get("apiKey").get("id"), apiKeyId));
@@ -115,6 +130,14 @@ public class ApiUsageService {
                     predicates.add(cb.like(cb.lower(root.get("endpoint")), "%" + endpoint.trim().toLowerCase() + "%"));
                 }
 
+                if (startDate != null) {
+                    predicates.add(cb.greaterThanOrEqualTo(root.get("timestamp"), startDate));
+                }
+
+                if (endDate != null) {
+                    predicates.add(cb.lessThanOrEqualTo(root.get("timestamp"), endDate));
+                }
+
                 return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
             };
             page = apiUsageRepository.findAll(spec, pageable);
@@ -125,6 +148,16 @@ public class ApiUsageService {
         }
 
         return page.map(ApiUsageSummaryResponse::fromEntity);
+    }
+
+    @Transactional
+    public int clearUsageLogs(User user, Long apiKeyId, java.time.LocalDateTime beforeDate) {
+        verifyApiKeyOwnership(user, apiKeyId);
+        if (beforeDate != null) {
+            return apiUsageRepository.deleteByApiKeyIdAndTimestampBefore(apiKeyId, beforeDate);
+        } else {
+            return apiUsageRepository.deleteByApiKeyId(apiKeyId);
+        }
     }
 
     @Transactional(readOnly = true)

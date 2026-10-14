@@ -186,21 +186,46 @@ public class ApiKeyController {
     }
 
     @GetMapping("/{id}/usage/logs")
-    @Operation(summary = "Get Paginated API Key Usage Logs", description = "Query paginated usage logs for an API key, with optional filtering by success status, HTTP method, and endpoint.")
+    @Operation(summary = "Get Paginated API Key Usage Logs", description = "Query paginated usage logs for an API key, with optional filtering by success status, HTTP method, endpoint, and date range.")
     public ResponseEntity<org.springframework.data.domain.Page<ApiUsageSummaryResponse>> getPaginatedUsage(
             Authentication authentication,
             @PathVariable Long id,
             @org.springframework.web.bind.annotation.RequestParam(required = false) Boolean successful,
             @org.springframework.web.bind.annotation.RequestParam(required = false) String httpMethod,
             @org.springframework.web.bind.annotation.RequestParam(required = false) String endpoint,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+            java.time.LocalDateTime startDate,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+            java.time.LocalDateTime endDate,
             @org.springdoc.core.annotations.ParameterObject
             @org.springframework.data.web.PageableDefault(size = 20, sort = "timestamp", direction = org.springframework.data.domain.Sort.Direction.DESC)
             org.springframework.data.domain.Pageable pageable
     ) {
         User user = getUser(authentication);
         org.springframework.data.domain.Page<ApiUsageSummaryResponse> page =
-                apiUsageService.getPaginatedUsage(user, id, successful, httpMethod, endpoint, pageable);
+                apiUsageService.getPaginatedUsage(user, id, successful, httpMethod, endpoint, startDate, endDate, pageable);
         return ResponseEntity.ok(page);
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}/usage/logs")
+    @Operation(summary = "Clear API Key Usage Logs", description = "Purge usage records for an API key, with optional beforeDate timestamp to only clear older logs.")
+    public ResponseEntity<java.util.Map<String, Object>> clearUsageLogs(
+            Authentication authentication,
+            @PathVariable Long id,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+            java.time.LocalDateTime beforeDate
+    ) {
+        User user = getUser(authentication);
+        int deletedCount = apiUsageService.clearUsageLogs(user, id, beforeDate);
+        auditLogService.recordEvent(id, null, user.getId(), "USAGE_CLEARED", "Cleared " + deletedCount + " usage records" + (beforeDate != null ? " older than " + beforeDate : ""));
+        return ResponseEntity.ok(java.util.Map.of(
+                "apiKeyId", id,
+                "deletedCount", deletedCount,
+                "message", "Successfully purged " + deletedCount + " usage logs"
+        ));
     }
 
     @GetMapping(value = "/{id}/usage/export", produces = "text/csv")
