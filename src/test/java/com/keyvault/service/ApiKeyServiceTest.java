@@ -48,6 +48,9 @@ class ApiKeyServiceTest {
     @Mock
     private com.keyvault.repository.ApiUsageRepository apiUsageRepository;
 
+    @Mock
+    private AuditLogService auditLogService;
+
     private ApiKeyGenerator apiKeyGenerator;
     private ApiKeyService apiKeyService;
     private User owner;
@@ -55,7 +58,7 @@ class ApiKeyServiceTest {
     @BeforeEach
     void setUp() {
         apiKeyGenerator = new ApiKeyGenerator();
-        apiKeyService = new ApiKeyService(apiKeyRepository, apiKeyGenerator, apiUsageRepository);
+        apiKeyService = new ApiKeyService(apiKeyRepository, apiKeyGenerator, apiUsageRepository, auditLogService);
         owner = User.builder().id(OWNER_ID).email("owner@example.com").name("Owner").role("ROLE_USER").build();
     }
 

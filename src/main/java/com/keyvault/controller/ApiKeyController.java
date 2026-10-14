@@ -38,6 +38,7 @@ public class ApiKeyController {
     private final ApiKeyService apiKeyService;
     private final ApiUsageService apiUsageService;
     private final UserRepository userRepository;
+    private final com.keyvault.service.AuditLogService auditLogService;
 
     @PostMapping
     @Operation(summary = "Generate API Key", description = "Generate a new API key with optional expiration date and specified permissions (READ, WRITE). Returns the raw API key ONCE.")
@@ -215,6 +216,31 @@ public class ApiKeyController {
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"api-key-" + id + "-usage.csv\"")
                 .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, "text/csv; charset=UTF-8")
                 .body(csvBytes);
+    }
+
+    @GetMapping("/{id}/audit-logs")
+    @Operation(summary = "Get API Key Audit Logs", description = "Retrieve immutable lifecycle audit events for a specific API key.")
+    public ResponseEntity<List<com.keyvault.dto.ApiKeyAuditLogResponse>> getAuditLogsForKey(
+            Authentication authentication,
+            @PathVariable Long id
+    ) {
+        User user = getUser(authentication);
+        List<com.keyvault.dto.ApiKeyAuditLogResponse> response = auditLogService.getAuditLogsForKey(user, id);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/audit-logs")
+    @Operation(summary = "Get User Audit Logs", description = "Query paginated audit logs for all API key actions performed by the authenticated user.")
+    public ResponseEntity<org.springframework.data.domain.Page<com.keyvault.dto.ApiKeyAuditLogResponse>> getUserAuditLogs(
+            Authentication authentication,
+            @org.springdoc.core.annotations.ParameterObject
+            @org.springframework.data.web.PageableDefault(size = 20, sort = "timestamp", direction = org.springframework.data.domain.Sort.Direction.DESC)
+            org.springframework.data.domain.Pageable pageable
+    ) {
+        User user = getUser(authentication);
+        org.springframework.data.domain.Page<com.keyvault.dto.ApiKeyAuditLogResponse> page =
+                auditLogService.getAuditLogsForUser(user, pageable);
+        return ResponseEntity.ok(page);
     }
 
     private User getUser(Authentication authentication) {

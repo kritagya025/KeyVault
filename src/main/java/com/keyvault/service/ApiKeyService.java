@@ -36,6 +36,7 @@ public class ApiKeyService {
     private final ApiKeyRepository apiKeyRepository;
     private final ApiKeyGenerator apiKeyGenerator;
     private final com.keyvault.repository.ApiUsageRepository apiUsageRepository;
+    private final AuditLogService auditLogService;
 
     /**
      * Generates a new API key for the authenticated user.
@@ -88,6 +89,7 @@ public class ApiKeyService {
                 .build();
 
         ApiKey savedKey = apiKeyRepository.save(apiKey);
+        auditLogService.recordEvent(savedKey.getId(), savedKey.getName(), user.getId(), "CREATED", "Key created with permissions: " + savedKey.getPermissions());
 
         return toCreateResponse(savedKey, rawApiKey);
     }
@@ -206,6 +208,7 @@ public class ApiKeyService {
         if (!apiKey.isRevoked()) {
             apiKey.setRevoked(true);
             apiKey = apiKeyRepository.save(apiKey);
+            auditLogService.recordEvent(apiKey.getId(), apiKey.getName(), user.getId(), "REVOKED", "Key revoked by user");
         }
         return ApiKeyResponse.fromEntity(apiKey);
     }
@@ -272,6 +275,7 @@ public class ApiKeyService {
         }
 
         ApiKey updated = apiKeyRepository.save(apiKey);
+        auditLogService.recordEvent(updated.getId(), updated.getName(), user.getId(), "UPDATED", "Key metadata updated");
         return ApiKeyResponse.fromEntity(updated);
     }
 
@@ -284,6 +288,7 @@ public class ApiKeyService {
     @Transactional
     public void deleteApiKey(User user, Long id) {
         ApiKey apiKey = findApiKeyAndVerifyOwnership(user, id);
+        auditLogService.recordEvent(apiKey.getId(), apiKey.getName(), user.getId(), "DELETED", "Key and associated logs deleted");
         apiUsageRepository.deleteByApiKeyId(apiKey.getId());
         apiKeyRepository.delete(apiKey);
     }
@@ -302,6 +307,7 @@ public class ApiKeyService {
                 if (!apiKey.isRevoked()) {
                     apiKey.setRevoked(true);
                     apiKeyRepository.save(apiKey);
+                    auditLogService.recordEvent(apiKey.getId(), apiKey.getName(), user.getId(), "BULK_REVOKED", "Key revoked via bulk operation");
                 }
                 successfulIds.add(id);
             } catch (Exception e) {
@@ -329,6 +335,7 @@ public class ApiKeyService {
         for (Long id : keyIds) {
             try {
                 ApiKey apiKey = findApiKeyAndVerifyOwnership(user, id);
+                auditLogService.recordEvent(apiKey.getId(), apiKey.getName(), user.getId(), "BULK_DELETED", "Key deleted via bulk operation");
                 apiUsageRepository.deleteByApiKeyId(apiKey.getId());
                 apiKeyRepository.delete(apiKey);
                 successfulIds.add(id);
@@ -394,6 +401,7 @@ public class ApiKeyService {
                 .build();
 
         ApiKey savedNewKey = apiKeyRepository.save(newKey);
+        auditLogService.recordEvent(savedNewKey.getId(), savedNewKey.getName(), user.getId(), "ROTATED", "Key rotated from previous key #" + oldKey.getId());
         return toCreateResponse(savedNewKey, newRawApiKey);
     }
 
@@ -428,6 +436,7 @@ public class ApiKeyService {
         }
 
         ApiKey savedKey = apiKeyRepository.save(apiKey);
+        auditLogService.recordEvent(savedKey.getId(), savedKey.getName(), user.getId(), "REGENERATED", "Key hash regenerated with new secret");
 
         return toCreateResponse(savedKey, newRawApiKey);
     }
