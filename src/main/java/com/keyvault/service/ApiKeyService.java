@@ -64,12 +64,18 @@ public class ApiKeyService {
                 ? new java.util.HashSet<>(request.getIpRestrictions())
                 : new java.util.HashSet<>();
 
+        Set<String> tags = request.getTags() != null
+                ? new java.util.HashSet<>(request.getTags())
+                : new java.util.HashSet<>();
+
         com.keyvault.entity.KeyEnvironment environment = request.getEnvironment() != null
                 ? request.getEnvironment()
                 : com.keyvault.entity.KeyEnvironment.DEVELOPMENT;
 
         ApiKey apiKey = ApiKey.builder()
                 .name(request.getName())
+                .description(request.getDescription())
+                .tags(tags)
                 .keyHash(keyHash)
                 .maskedKey(maskedKey)
                 .expiresAt(request.getExpiresAt())
@@ -88,16 +94,21 @@ public class ApiKeyService {
 
     @Transactional(readOnly = true)
     public List<ApiKeyResponse> getUserApiKeys(User user) {
-        return getUserApiKeys(user, null, null, null);
+        return getUserApiKeys(user, null, null, null, null);
     }
 
     @Transactional(readOnly = true)
     public List<ApiKeyResponse> getUserApiKeys(User user, String status, String query) {
-        return getUserApiKeys(user, status, query, null);
+        return getUserApiKeys(user, status, query, null, null);
     }
 
     @Transactional(readOnly = true)
     public List<ApiKeyResponse> getUserApiKeys(User user, String status, String query, String environment) {
+        return getUserApiKeys(user, status, query, environment, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ApiKeyResponse> getUserApiKeys(User user, String status, String query, String environment, String tag) {
         List<ApiKey> keys = apiKeyRepository.findByUserId(user.getId());
 
         if (status != null && !status.trim().isEmpty()) {
@@ -113,7 +124,8 @@ public class ApiKeyService {
         if (query != null && !query.trim().isEmpty()) {
             String lowerQuery = query.trim().toLowerCase();
             keys = keys.stream()
-                    .filter(key -> key.getName() != null && key.getName().toLowerCase().contains(lowerQuery))
+                    .filter(key -> (key.getName() != null && key.getName().toLowerCase().contains(lowerQuery)) ||
+                                   (key.getDescription() != null && key.getDescription().toLowerCase().contains(lowerQuery)))
                     .toList();
         }
 
@@ -127,6 +139,13 @@ public class ApiKeyService {
             }
             keys = keys.stream()
                     .filter(key -> key.getEnvironment() == targetEnv)
+                    .toList();
+        }
+
+        if (tag != null && !tag.trim().isEmpty()) {
+            String targetTag = tag.trim().toLowerCase();
+            keys = keys.stream()
+                    .filter(key -> key.getTags() != null && key.getTags().stream().anyMatch(t -> t.equalsIgnoreCase(targetTag)))
                     .toList();
         }
 
@@ -234,6 +253,16 @@ public class ApiKeyService {
 
         if (request.getEnvironment() != null) {
             apiKey.setEnvironment(request.getEnvironment());
+        }
+
+        if (Boolean.TRUE.equals(request.getClearDescription())) {
+            apiKey.setDescription(null);
+        } else if (request.getDescription() != null) {
+            apiKey.setDescription(request.getDescription().trim());
+        }
+
+        if (request.getTags() != null) {
+            apiKey.setTags(new java.util.HashSet<>(request.getTags()));
         }
 
         if (Boolean.TRUE.equals(request.getClearRateLimit())) {
@@ -351,6 +380,8 @@ public class ApiKeyService {
 
         ApiKey newKey = ApiKey.builder()
                 .name(oldKey.getName())
+                .description(oldKey.getDescription())
+                .tags(new java.util.HashSet<>(oldKey.getTags()))
                 .keyHash(newKeyHash)
                 .maskedKey(newMaskedKey)
                 .expiresAt(null)
@@ -417,6 +448,8 @@ public class ApiKeyService {
         return CreateApiKeyResponse.builder()
                 .id(apiKey.getId())
                 .name(apiKey.getName())
+                .description(apiKey.getDescription())
+                .tags(apiKey.getTags())
                 .apiKey(rawApiKey)
                 .maskedKey(apiKey.getMaskedKey())
                 .expiresAt(apiKey.getExpiresAt())

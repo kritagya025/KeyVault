@@ -19,6 +19,13 @@ public class UpdateApiKeyRequest {
     @Size(min = 1, max = 100, message = "Key name must be between 1 and 100 characters")
     private String name;
 
+    @Size(max = 500, message = "Description must not exceed 500 characters")
+    private String description;
+
+    private Boolean clearDescription;
+
+    private Set<String> tags;
+
     private Set<Permission> permissions;
 
     private LocalDateTime expiresAt;

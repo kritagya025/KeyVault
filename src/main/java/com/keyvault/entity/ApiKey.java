@@ -40,6 +40,9 @@ public class ApiKey {
     @Column(nullable = false)
     private String name;
 
+    @Column(length = 500)
+    private String description;
+
     @Column(name = "key_hash", nullable = false, unique = true)
     private String keyHash;
 
@@ -83,6 +86,12 @@ public class ApiKey {
     @Column(name = "ip_restriction")
     @Builder.Default
     private Set<String> ipRestrictions = new HashSet<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "api_key_tags", joinColumns = @JoinColumn(name = "api_key_id"))
+    @Column(name = "tag")
+    @Builder.Default
+    private Set<String> tags = new HashSet<>();
 
     @PrePersist
     protected void onCreate() {

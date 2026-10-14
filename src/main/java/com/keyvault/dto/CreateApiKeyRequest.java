@@ -21,6 +21,11 @@ public class CreateApiKeyRequest {
     @Size(max = 100, message = "API key name cannot exceed 100 characters")
     private String name;
 
+    @Size(max = 500, message = "Description must not exceed 500 characters")
+    private String description;
+
+    private Set<String> tags;
+
     private LocalDateTime expiresAt;
 
     private Set<Permission> permissions;

@@ -18,6 +18,8 @@ public class ApiKeyResponse {
 
     private Long id;
     private String name;
+    private String description;
+    private Set<String> tags;
     private String maskedKey;
     private LocalDateTime expiresAt;
     private LocalDateTime createdAt;
@@ -46,6 +48,8 @@ public class ApiKeyResponse {
         return ApiKeyResponse.builder()
                 .id(apiKey.getId())
                 .name(apiKey.getName())
+                .description(apiKey.getDescription())
+                .tags(apiKey.getTags())
                 .maskedKey(apiKey.getMaskedKey())
                 .expiresAt(apiKey.getExpiresAt())
                 .createdAt(apiKey.getCreatedAt())

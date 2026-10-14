@@ -17,6 +17,8 @@ public class CreateApiKeyResponse {
 
     private Long id;
     private String name;
+    private String description;
+    private Set<String> tags;
     private String apiKey;
     private String maskedKey;
     private LocalDateTime expiresAt;
