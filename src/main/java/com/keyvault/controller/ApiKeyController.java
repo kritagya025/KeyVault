@@ -116,6 +116,28 @@ public class ApiKeyController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/bulk-revoke")
+    @Operation(summary = "Bulk Revoke API Keys", description = "Revoke multiple API keys in a single operation. Ignores keys that are already revoked.")
+    public ResponseEntity<com.keyvault.dto.BulkKeyActionResponse> bulkRevokeApiKeys(
+            Authentication authentication,
+            @jakarta.validation.Valid @RequestBody com.keyvault.dto.BulkKeyActionRequest request
+    ) {
+        User user = getUser(authentication);
+        com.keyvault.dto.BulkKeyActionResponse response = apiKeyService.bulkRevokeApiKeys(user, request.getKeyIds());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/bulk-delete")
+    @Operation(summary = "Bulk Delete API Keys", description = "Permanently delete multiple API keys and their associated usage records in a single operation.")
+    public ResponseEntity<com.keyvault.dto.BulkKeyActionResponse> bulkDeleteApiKeys(
+            Authentication authentication,
+            @jakarta.validation.Valid @RequestBody com.keyvault.dto.BulkKeyActionRequest request
+    ) {
+        User user = getUser(authentication);
+        com.keyvault.dto.BulkKeyActionResponse response = apiKeyService.bulkDeleteApiKeys(user, request.getKeyIds());
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/{id}/regenerate")
     @Operation(summary = "Regenerate API Key", description = "Regenerate an ACTIVE or EXPIRED API key. Replaces old hash with a new key and returns the raw key ONCE.")
     public ResponseEntity<CreateApiKeyResponse> regenerateApiKey(

@@ -259,6 +259,64 @@ public class ApiKeyService {
         apiKeyRepository.delete(apiKey);
     }
 
+    @Transactional
+    public com.keyvault.dto.BulkKeyActionResponse bulkRevokeApiKeys(User user, Set<Long> keyIds) {
+        if (keyIds == null || keyIds.isEmpty()) {
+            throw new IllegalArgumentException("keyIds must not be empty");
+        }
+        List<Long> successfulIds = new java.util.ArrayList<>();
+        List<Long> failedIds = new java.util.ArrayList<>();
+
+        for (Long id : keyIds) {
+            try {
+                ApiKey apiKey = findApiKeyAndVerifyOwnership(user, id);
+                if (!apiKey.isRevoked()) {
+                    apiKey.setRevoked(true);
+                    apiKeyRepository.save(apiKey);
+                }
+                successfulIds.add(id);
+            } catch (Exception e) {
+                failedIds.add(id);
+            }
+        }
+
+        return com.keyvault.dto.BulkKeyActionResponse.builder()
+                .requestedCount(keyIds.size())
+                .processedCount(successfulIds.size())
+                .successfulIds(successfulIds)
+                .failedIds(failedIds)
+                .message("Bulk revocation completed: " + successfulIds.size() + " succeeded, " + failedIds.size() + " failed")
+                .build();
+    }
+
+    @Transactional
+    public com.keyvault.dto.BulkKeyActionResponse bulkDeleteApiKeys(User user, Set<Long> keyIds) {
+        if (keyIds == null || keyIds.isEmpty()) {
+            throw new IllegalArgumentException("keyIds must not be empty");
+        }
+        List<Long> successfulIds = new java.util.ArrayList<>();
+        List<Long> failedIds = new java.util.ArrayList<>();
+
+        for (Long id : keyIds) {
+            try {
+                ApiKey apiKey = findApiKeyAndVerifyOwnership(user, id);
+                apiUsageRepository.deleteByApiKeyId(apiKey.getId());
+                apiKeyRepository.delete(apiKey);
+                successfulIds.add(id);
+            } catch (Exception e) {
+                failedIds.add(id);
+            }
+        }
+
+        return com.keyvault.dto.BulkKeyActionResponse.builder()
+                .requestedCount(keyIds.size())
+                .processedCount(successfulIds.size())
+                .successfulIds(successfulIds)
+                .failedIds(failedIds)
+                .message("Bulk deletion completed: " + successfulIds.size() + " succeeded, " + failedIds.size() + " failed")
+                .build();
+    }
+
     /**
      * Issues a replacement API key with identical scopes, restrictions, and environment,
      * while giving the original key an overlapping grace period for zero-downtime rotation.
