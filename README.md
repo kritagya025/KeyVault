@@ -15,9 +15,10 @@ KeyVault addresses key lifecycle management and access control in backend archit
 
 - **User Authentication**: JWT-based access for developers/users managing their accounts and keys.
 - **One-Way Hashing & Safe Previews**: Raw API keys (`kv_live_...`) are returned only once upon generation/regeneration. Only SHA-256 hashes are persisted in PostgreSQL, paired with safe masked identifiers (`kv_live_••••••••abcd`) for dashboard recognition.
-- **Granular Permissions**: API keys can be scoped with `READ` or `WRITE` permissions.
-- **Full Lifecycle Management**: Create, update metadata, revoke, delete, and regenerate keys with dynamic status calculation (`ACTIVE`, `REVOKED`, `EXPIRED`).
-- **Usage & Activity Tracking**: Intercepts requests to record endpoint calls, HTTP methods, response status codes, success metrics, and `lastUsedAt` timestamps per key without logging sensitive data. Paginated query endpoints allow deep usage inspection.
+- **Granular Permissions & Metadata**: API keys can be scoped with `READ` or `WRITE` permissions, custom descriptions, and tags (`#analytics`, `#backend`, `#prod`) for organization and filtered querying.
+- **Full Lifecycle & Bulk Management**: Create, update metadata, revoke, rotate with zero-downtime grace periods, delete, regenerate keys, or perform bulk revocation/deletion across multiple keys.
+- **Immutable Audit Logging**: Every key lifecycle event (creation, updates, regeneration, rotation, revocation, bulk actions, and log purging) is recorded with immutable audit trails.
+- **Usage & Activity Tracking**: Intercepts requests to record endpoint calls, HTTP methods, response status codes, success metrics, and `lastUsedAt` timestamps per key without logging sensitive data. Paginated query endpoints support date range filtering, and historical logs can be purged on demand or exported as CSV.
 
 ---
 
@@ -208,10 +209,12 @@ It is plain HTML, CSS, and ES modules under `src/main/resources/static/` — no 
 | Capability | Detail |
 | :--- | :--- |
 | **Register / sign in** | Stores the returned JWT in `localStorage` and restores the session on reload. A rejected token signs the user out automatically. |
-| **Key table** | Name, derived status badge (`ACTIVE` / `REVOKED` / `EXPIRED`), permissions, creation and expiry timestamps. |
-| **Create key** | Name, `READ` / `WRITE` selection, and an optional expiry. The raw key is revealed once in a dialog with a copy button and is never shown again. |
-| **Regenerate / revoke** | Destructive actions use a two-step in-button confirm. Revoked keys lose both actions, matching the server rule that revocation is terminal. |
-| **Usage** | Total, successful, and failed request counts for the selected key, plus its ten most recent requests. |
+| **Key table** | Name, description, tag badges (`#analytics`, `#prod`), derived status badge (`ACTIVE` / `REVOKED` / `EXPIRED`), permissions, environment, rate limit, and expiry timestamps. |
+| **Bulk management** | Checkbox selection with floating bulk action toolbar for one-click bulk key revocation or deletion. |
+| **Create key** | Name, description, tags, environment, `READ` / `WRITE` selection, rate limit, IP restrictions, and optional expiry. The raw key is revealed once with copy support. |
+| **Audit trail** | Dedicated Audit button displaying the key's complete immutable event history in a modal. |
+| **Regenerate / rotate / revoke** | Destructive actions use a two-step in-button confirm. Zero-downtime key rotation includes configurable grace periods. |
+| **Usage analytics & log purge** | Total, successful, and failed request counts, recent request inspection, CSV export, and instant log purge (`Clear logs`). |
 | **Endpoint tester** | Calls `/api/protected/*` with a raw key so `200` / `401` / `403` outcomes are visible directly in the UI. |
 
 `SecurityConfig` permits `GET` on the dashboard's static paths (`/`, `/index.html`, `/css/**`, `/js/**`) so the login page can load; every `/api/**` route stays protected. `DashboardAccessIntegrationTest` guards both halves of that rule.
@@ -246,18 +249,23 @@ Use the **Authorize** button in Swagger UI to test endpoints:
 ### 3. API Key Management & Usage
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/keys` | JWT | Generate new API key with permissions (`READ`, `WRITE`), optional environment (`DEVELOPMENT`, `STAGING`, `PRODUCTION`), IP restrictions, rate limit, and expiry. Returns raw key once. |
-| `GET` | `/api/keys` | JWT | List API keys owned by current user with optional `?status=ACTIVE`, `?query=name`, and `?environment=PRODUCTION` filters. |
+| `POST` | `/api/keys` | JWT | Generate new API key with permissions (`READ`, `WRITE`), optional environment (`DEVELOPMENT`, `STAGING`, `PRODUCTION`), IP restrictions, description, tags, rate limit, and expiry. Returns raw key once. |
+| `GET` | `/api/keys` | JWT | List API keys owned by current user with optional `?status=ACTIVE`, `?query=name`, `?environment=PRODUCTION`, and `?tag=backend` filters. |
 | `GET` | `/api/keys/summary` | JWT | Get account-level overview metrics (key counts by status, expiring-soon keys count, aggregate total/successful/failed requests). |
-| `GET` | `/api/keys/{id}` | JWT | Get single API key metadata, permissions, status, environment, `maskedKey`, `rateLimit`, `ipRestrictions`, `expiringSoon`, and `lastUsedAt`. |
-| `PATCH` | `/api/keys/{id}` | JWT | Update key name, permissions, environment, rate limit, IP restrictions, extend `expiresAt`, or clear expiration. |
+| `GET` | `/api/keys/{id}` | JWT | Get single API key metadata, permissions, status, environment, description, tags, `maskedKey`, `rateLimit`, `ipRestrictions`, `expiringSoon`, and `lastUsedAt`. |
+| `PATCH` | `/api/keys/{id}` | JWT | Update key name, description, tags, permissions, environment, rate limit, IP restrictions, extend `expiresAt`, or clear expiration. |
 | `PATCH` | `/api/keys/{id}/revoke` | JWT | Revoke an API key immediately (`REVOKED`). |
 | `DELETE` | `/api/keys/{id}` | JWT | Permanently delete API key and its associated usage history. |
+| `POST` | `/api/keys/bulk-revoke` | JWT | Bulk revoke multiple API keys by ID in a single operation. |
+| `POST` | `/api/keys/bulk-delete` | JWT | Bulk delete multiple API keys and their associated usage records by ID. |
 | `POST` | `/api/keys/{id}/regenerate` | JWT | Regenerate an `ACTIVE` or `EXPIRED` key. Issues new raw key once. |
 | `POST` | `/api/keys/{id}/rotate` | JWT | Rotate an API key with zero downtime, giving old key an overlapping grace period (default 24h). |
+| `GET` | `/api/keys/{id}/audit-logs` | JWT | Retrieve immutable lifecycle audit trail for a specific API key. |
+| `GET` | `/api/keys/audit-logs` | JWT | Query paginated audit log events across all API keys owned by the user. |
 | `GET` | `/api/keys/{id}/usage` | JWT | Get aggregate request statistics (`totalRequests`, `successfulRequests`, `failedRequests`, and `requestsByEndpoint`). |
 | `GET` | `/api/keys/{id}/usage/recent` | JWT | Get top 10 recent request log records for an API key. |
-| `GET` | `/api/keys/{id}/usage/logs` | JWT | Query paginated usage logs with optional status, method, and endpoint filtering (`?page=0&size=20&successful=true&httpMethod=POST&endpoint=read`). |
+| `GET` | `/api/keys/{id}/usage/logs` | JWT | Query paginated usage logs with optional status, method, endpoint, and date range filtering (`?page=0&size=20&successful=true&httpMethod=POST&endpoint=read&startDate=...&endDate=...`). |
+| `DELETE` | `/api/keys/{id}/usage/logs` | JWT | Purge historical usage logs for an API key, with optional `?beforeDate=` cutoff. |
 | `GET` | `/api/keys/{id}/usage/export` | JWT | Download complete historical usage logs formatted as a standard CSV file. |
 
 ### 4. Protected Consumer APIs
@@ -330,12 +338,12 @@ The suite runs against an in-memory H2 database in PostgreSQL compatibility mode
 ./mvnw test
 ```
 
-71 tests across two layers:
+90 tests across two layers:
 
 | Layer | Coverage |
 | :--- | :--- |
-| **Unit** (`ApiKeyServiceTest`, `AuthServiceTest`, `ApiUsageServiceTest`, `ApiKeyGeneratorTest`, `JwtUtilsTest`) | Key hashing and SHA-256 digests, key masking, last-used updates, permission defaulting, expiry validation, revocation idempotency, regeneration windows, BCrypt password handling, profile updates, password change verification, JWT signing, expiry and secret validation. |
-| **Integration** (`*IntegrationTest`) | Full request path through the Spring Security filter chain: registration and login, profile management, password updates, dual authentication, `READ`/`WRITE` permission enforcement, key lifecycle (creation, update, revocation, deletion), ownership isolation, usage tracking with pagination, key regeneration, and dashboard asset access. |
+| **Unit** (`ApiKeyServiceTest`, `AuthServiceTest`, `ApiUsageServiceTest`, `ApiKeyGeneratorTest`, `JwtUtilsTest`, `RateLimiterServiceTest`, `IpUtilsTest`) | Key hashing and SHA-256 digests, key masking, last-used updates, permission defaulting, expiry validation, revocation idempotency, regeneration windows, BCrypt password handling, profile updates, password change verification, JWT signing, expiry and secret validation, sliding-window rate limiting, and IP matching. |
+| **Integration** (`*IntegrationTest`) | Full request path through the Spring Security filter chain: registration and login, profile management, password updates, dual authentication, `READ`/`WRITE` permission enforcement, key lifecycle (creation, update, revocation, deletion), zero-downtime rotation, bulk key revocation/deletion, immutable audit trail generation, usage log date range queries, log purging, ownership isolation, usage tracking with pagination, key regeneration, and dashboard asset access. |
 
 The `test` profile lives in `src/test/resources/application-test.yml`. Every test class is annotated `@ActiveProfiles("test")`, so no production configuration is ever loaded during a test run.
 
