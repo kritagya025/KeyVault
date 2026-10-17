@@ -65,6 +65,24 @@ public class ApiKeyController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping(value = "/export", produces = "text/csv")
+    @Operation(summary = "Export API Keys Catalog as CSV", description = "Download a CSV catalog of API keys owned by the user, with optional status, query, environment, and tag filtering.")
+    public ResponseEntity<byte[]> exportApiKeysCsv(
+            Authentication authentication,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String status,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String query,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String environment,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String tag
+    ) {
+        User user = getUser(authentication);
+        byte[] csvBytes = apiKeyService.exportUserApiKeysAsCsv(user, status, query, environment, tag);
+
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"api-keys-catalog.csv\"")
+                .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, "text/csv; charset=UTF-8")
+                .body(csvBytes);
+    }
+
     @GetMapping("/summary")
     @Operation(summary = "Get Account API Keys and Usage Summary", description = "Retrieve high-level overview metrics for the authenticated user, including key counts by status and overall API usage counts.")
     public ResponseEntity<com.keyvault.dto.ApiKeyOverviewResponse> getAccountSummary(Authentication authentication) {

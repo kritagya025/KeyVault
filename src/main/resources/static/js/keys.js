@@ -65,6 +65,7 @@ export function initKeys({ onSelect, onError }) {
     const auditEmpty = $('#audit-empty');
     const auditSubtitle = $('#audit-subtitle');
     const auditExportBtn = $('#audit-export-btn');
+    const exportKeysBtn = $('#export-keys-btn');
 
     const selectAllCheckbox = $('#keys-select-all');
     const bulkBar = $('#bulk-bar');
@@ -420,6 +421,14 @@ export function initKeys({ onSelect, onError }) {
             await api.downloadAuditLogsCsv(currentAuditKeyId);
         } catch (err) {
             alert(`Failed to export audit logs: ${err.message}`);
+        }
+    });
+
+    exportKeysBtn?.addEventListener('click', async () => {
+        try {
+            await api.downloadKeysCsv();
+        } catch (err) {
+            alert(`Failed to export API keys: ${err.message}`);
         }
     });
 

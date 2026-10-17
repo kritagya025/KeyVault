@@ -482,4 +482,47 @@ public class ApiKeyService {
 
         return apiKey;
     }
+
+    @Transactional(readOnly = true)
+    public byte[] exportUserApiKeysAsCsv(User user, String status, String query, String environment, String tag) {
+        List<ApiKeyResponse> keys = getUserApiKeys(user, status, query, environment, tag);
+
+        StringBuilder csv = new StringBuilder();
+        csv.append("Key ID,Name,Description,Masked Key,Environment,Permissions,Tags,Rate Limit,Status,Created At,Expires At,Last Used At\r\n");
+
+        for (ApiKeyResponse key : keys) {
+            String perms = key.getPermissions() != null
+                    ? String.join(";", key.getPermissions().stream().map(Enum::name).sorted().toList())
+                    : "";
+            String tags = key.getTags() != null
+                    ? String.join(";", key.getTags().stream().sorted().toList())
+                    : "";
+            String rateLimitStr = key.getRateLimit() != null ? String.valueOf(key.getRateLimit()) : "unlimited";
+
+            csv.append(key.getId() != null ? key.getId() : "").append(",")
+               .append(escapeCsv(key.getName())).append(",")
+               .append(escapeCsv(key.getDescription())).append(",")
+               .append(escapeCsv(key.getMaskedKey())).append(",")
+               .append(escapeCsv(key.getEnvironment() != null ? key.getEnvironment().name() : "")).append(",")
+               .append(escapeCsv(perms)).append(",")
+               .append(escapeCsv(tags)).append(",")
+               .append(escapeCsv(rateLimitStr)).append(",")
+               .append(escapeCsv(key.getStatus())).append(",")
+               .append(escapeCsv(key.getCreatedAt() != null ? key.getCreatedAt().toString() : "")).append(",")
+               .append(escapeCsv(key.getExpiresAt() != null ? key.getExpiresAt().toString() : "")).append(",")
+               .append(escapeCsv(key.getLastUsedAt() != null ? key.getLastUsedAt().toString() : "")).append("\r\n");
+        }
+
+        return csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private String escapeCsv(String val) {
+        if (val == null) {
+            return "";
+        }
+        if (val.contains(",") || val.contains("\"") || val.contains("\n") || val.contains("\r")) {
+            return "\"" + val.replace("\"", "\"\"") + "\"";
+        }
+        return val;
+    }
 }

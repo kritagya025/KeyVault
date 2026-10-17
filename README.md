@@ -212,7 +212,8 @@ It is plain HTML, CSS, and ES modules under `src/main/resources/static/` — no 
 | **Key table** | Name, description, tag badges (`#analytics`, `#prod`), derived status badge (`ACTIVE` / `REVOKED` / `EXPIRED`), permissions, environment, rate limit, and expiry timestamps. |
 | **Bulk management** | Checkbox selection with floating bulk action toolbar for one-click bulk key revocation or deletion. |
 | **Create key** | Name, description, tags, environment, `READ` / `WRITE` selection, rate limit, IP restrictions, and optional expiry. The raw key is revealed once with copy support. |
-| **Audit trail** | Dedicated Audit button displaying the key's complete immutable event history in a modal. |
+| **Audit trail** | Dedicated Audit button displaying the key's complete immutable event history in a modal with CSV export. |
+| **Catalog & audit CSV export** | One-click CSV downloads for the complete API keys catalog, key-level audit logs, and account-wide compliance trails. |
 | **Regenerate / rotate / revoke** | Destructive actions use a two-step in-button confirm. Zero-downtime key rotation includes configurable grace periods. |
 | **Usage analytics & log purge** | Total, successful, and failed request counts, recent request inspection, CSV export, and instant log purge (`Clear logs`). |
 | **Endpoint tester** | Calls `/api/protected/*` with a raw key so `200` / `401` / `403` outcomes are visible directly in the UI. |
@@ -251,6 +252,7 @@ Use the **Authorize** button in Swagger UI to test endpoints:
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/keys` | JWT | Generate new API key with permissions (`READ`, `WRITE`), optional environment (`DEVELOPMENT`, `STAGING`, `PRODUCTION`), IP restrictions, description, tags, rate limit, and expiry. Returns raw key once. |
 | `GET` | `/api/keys` | JWT | List API keys owned by current user with optional `?status=ACTIVE`, `?query=name`, `?environment=PRODUCTION`, and `?tag=backend` filters. |
+| `GET` | `/api/keys/export` | JWT | Download complete API keys catalog as a formatted CSV file with optional `?status=`, `?query=`, `?environment=`, and `?tag=` filtering. |
 | `GET` | `/api/keys/summary` | JWT | Get account-level overview metrics (key counts by status, expiring-soon keys count, aggregate total/successful/failed requests). |
 | `GET` | `/api/keys/{id}` | JWT | Get single API key metadata, permissions, status, environment, description, tags, `maskedKey`, `rateLimit`, `ipRestrictions`, `expiringSoon`, and `lastUsedAt`. |
 | `PATCH` | `/api/keys/{id}` | JWT | Update key name, description, tags, permissions, environment, rate limit, IP restrictions, extend `expiresAt`, or clear expiration. |
@@ -261,7 +263,9 @@ Use the **Authorize** button in Swagger UI to test endpoints:
 | `POST` | `/api/keys/{id}/regenerate` | JWT | Regenerate an `ACTIVE` or `EXPIRED` key. Issues new raw key once. |
 | `POST` | `/api/keys/{id}/rotate` | JWT | Rotate an API key with zero downtime, giving old key an overlapping grace period (default 24h). |
 | `GET` | `/api/keys/{id}/audit-logs` | JWT | Retrieve immutable lifecycle audit trail for a specific API key. |
+| `GET` | `/api/keys/{id}/audit-logs/export` | JWT | Download immutable audit logs for a specific API key as a formatted CSV file. |
 | `GET` | `/api/keys/audit-logs` | JWT | Query paginated audit log events across all API keys owned by the user. |
+| `GET` | `/api/keys/audit-logs/export` | JWT | Download complete account-wide audit trail logs formatted as a standard CSV file. |
 | `GET` | `/api/keys/{id}/usage` | JWT | Get aggregate request statistics (`totalRequests`, `successfulRequests`, `failedRequests`, and `requestsByEndpoint`). |
 | `GET` | `/api/keys/{id}/usage/recent` | JWT | Get top 10 recent request log records for an API key. |
 | `GET` | `/api/keys/{id}/usage/logs` | JWT | Query paginated usage logs with optional status, method, endpoint, and date range filtering (`?page=0&size=20&successful=true&httpMethod=POST&endpoint=read&startDate=...&endDate=...`). |

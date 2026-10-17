@@ -82,7 +82,10 @@
                     <h2 class="panel__title">API Keys</h2>
                     <p class="panel__sub">Raw keys are shown once at creation. Only SHA-256 hashes are stored.</p>
                 </div>
-                <button id="new-key-btn" class="btn btn--primary btn--sm">New key</button>
+                <div class="panel__actions">
+                    <button id="export-keys-btn" class="btn btn--ghost btn--sm">Export CSV</button>
+                    <button id="new-key-btn" class="btn btn--primary btn--sm">New key</button>
+                </div>
             </div>
 
             <div id="bulk-bar" class="bulk-bar" hidden>

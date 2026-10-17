@@ -181,4 +181,27 @@ export const api = {
         a.remove();
         window.URL.revokeObjectURL(url);
     },
+
+    downloadKeysCsv: async (params = {}) => {
+        const bearer = token.get();
+        const headers = {};
+        if (bearer) headers.Authorization = `Bearer ${bearer}`;
+        const searchParams = new URLSearchParams();
+        if (params.status) searchParams.set('status', params.status);
+        if (params.query) searchParams.set('query', params.query);
+        if (params.environment) searchParams.set('environment', params.environment);
+        if (params.tag) searchParams.set('tag', params.tag);
+        const qs = searchParams.toString();
+        const res = await fetch(qs ? `/api/keys/export?${qs}` : '/api/keys/export', { headers });
+        if (!res.ok) throw new ApiError(res.status, 'Failed to export API keys catalog CSV');
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'api-keys-catalog.csv';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    },
 };
