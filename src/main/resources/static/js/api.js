@@ -147,4 +147,38 @@ export const api = {
         a.remove();
         window.URL.revokeObjectURL(url);
     },
+
+    downloadAuditLogsCsv: async (id) => {
+        const bearer = token.get();
+        const headers = {};
+        if (bearer) headers.Authorization = `Bearer ${bearer}`;
+        const res = await fetch(`/api/keys/${id}/audit-logs/export`, { headers });
+        if (!res.ok) throw new ApiError(res.status, 'Failed to export audit logs CSV');
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `api-key-${id}-audit-logs.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    },
+
+    downloadUserAuditLogsCsv: async () => {
+        const bearer = token.get();
+        const headers = {};
+        if (bearer) headers.Authorization = `Bearer ${bearer}`;
+        const res = await fetch('/api/keys/audit-logs/export', { headers });
+        if (!res.ok) throw new ApiError(res.status, 'Failed to export user audit logs CSV');
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'user-audit-logs.csv';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    },
 };

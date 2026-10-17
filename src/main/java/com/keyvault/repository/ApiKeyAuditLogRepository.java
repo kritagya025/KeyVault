@@ -13,6 +13,8 @@ public interface ApiKeyAuditLogRepository extends JpaRepository<ApiKeyAuditLog, 
 
     List<ApiKeyAuditLog> findByApiKeyIdOrderByTimestampDesc(Long apiKeyId);
 
+    List<ApiKeyAuditLog> findByUserIdOrderByTimestampDesc(Long userId);
+
     Page<ApiKeyAuditLog> findByUserIdOrderByTimestampDesc(Long userId, Pageable pageable);
 
     Page<ApiKeyAuditLog> findByApiKeyIdOrderByTimestampDesc(Long apiKeyId, Pageable pageable);

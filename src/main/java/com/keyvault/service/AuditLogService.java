@@ -54,4 +54,49 @@ public class AuditLogService {
         return auditLogRepository.findByUserIdOrderByTimestampDesc(user.getId(), pageable)
                 .map(ApiKeyAuditLogResponse::fromEntity);
     }
+
+    @Transactional(readOnly = true)
+    public byte[] exportAuditLogsForKeyAsCsv(User user, Long apiKeyId) {
+        ApiKey apiKey = apiKeyRepository.findById(apiKeyId)
+                .orElseThrow(() -> new ResourceNotFoundException("API key not found with id: " + apiKeyId));
+
+        if (!apiKey.getUser().getId().equals(user.getId())) {
+            throw new ResourceNotFoundException("API key not found with id: " + apiKeyId);
+        }
+
+        List<ApiKeyAuditLog> logs = auditLogRepository.findByApiKeyIdOrderByTimestampDesc(apiKeyId);
+        return formatLogsToCsv(logs);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportUserAuditLogsAsCsv(User user) {
+        List<ApiKeyAuditLog> logs = auditLogRepository.findByUserIdOrderByTimestampDesc(user.getId());
+        return formatLogsToCsv(logs);
+    }
+
+    private byte[] formatLogsToCsv(List<ApiKeyAuditLog> logs) {
+        StringBuilder csv = new StringBuilder();
+        csv.append("Timestamp,Log ID,API Key ID,Key Name,Action,Details\r\n");
+
+        for (ApiKeyAuditLog log : logs) {
+            csv.append(escapeCsv(log.getTimestamp() != null ? log.getTimestamp().toString() : "")).append(",")
+               .append(log.getId() != null ? log.getId() : "").append(",")
+               .append(log.getApiKeyId() != null ? log.getApiKeyId() : "").append(",")
+               .append(escapeCsv(log.getKeyName())).append(",")
+               .append(escapeCsv(log.getAction())).append(",")
+               .append(escapeCsv(log.getDetails())).append("\r\n");
+        }
+
+        return csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private String escapeCsv(String val) {
+        if (val == null) {
+            return "";
+        }
+        if (val.contains(",") || val.contains("\"") || val.contains("\n") || val.contains("\r")) {
+            return "\"" + val.replace("\"", "\"\"") + "\"";
+        }
+        return val;
+    }
 }

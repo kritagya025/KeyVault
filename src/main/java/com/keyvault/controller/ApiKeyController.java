@@ -268,6 +268,33 @@ public class ApiKeyController {
         return ResponseEntity.ok(page);
     }
 
+    @GetMapping(value = "/{id}/audit-logs/export", produces = "text/csv")
+    @Operation(summary = "Export API Key Audit Logs as CSV", description = "Download immutable audit logs for a specific API key as a formatted CSV file.")
+    public ResponseEntity<byte[]> exportKeyAuditLogsCsv(
+            Authentication authentication,
+            @PathVariable Long id
+    ) {
+        User user = getUser(authentication);
+        byte[] csvBytes = auditLogService.exportAuditLogsForKeyAsCsv(user, id);
+
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"api-key-" + id + "-audit-logs.csv\"")
+                .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, "text/csv; charset=UTF-8")
+                .body(csvBytes);
+    }
+
+    @GetMapping(value = "/audit-logs/export", produces = "text/csv")
+    @Operation(summary = "Export User Audit Logs as CSV", description = "Download all immutable audit logs for the authenticated user's account as a formatted CSV file.")
+    public ResponseEntity<byte[]> exportUserAuditLogsCsv(Authentication authentication) {
+        User user = getUser(authentication);
+        byte[] csvBytes = auditLogService.exportUserAuditLogsAsCsv(user);
+
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"user-audit-logs.csv\"")
+                .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, "text/csv; charset=UTF-8")
+                .body(csvBytes);
+    }
+
     private User getUser(Authentication authentication) {
         return userRepository.findByEmail(authentication.getName())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));

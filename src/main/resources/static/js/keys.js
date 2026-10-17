@@ -64,6 +64,7 @@ export function initKeys({ onSelect, onError }) {
     const auditList = $('#audit-list');
     const auditEmpty = $('#audit-empty');
     const auditSubtitle = $('#audit-subtitle');
+    const auditExportBtn = $('#audit-export-btn');
 
     const selectAllCheckbox = $('#keys-select-all');
     const bulkBar = $('#bulk-bar');
@@ -74,6 +75,7 @@ export function initKeys({ onSelect, onError }) {
     let selectedId = null;
     let selectedKeyIds = new Set();
     let currentKeys = [];
+    let currentAuditKeyId = null;
 
     function updateBulkBar() {
         if (selectedKeyIds.size > 0) {
@@ -143,6 +145,7 @@ export function initKeys({ onSelect, onError }) {
     }
 
     async function showAuditLogs(key) {
+        currentAuditKeyId = key.id;
         auditSubtitle.textContent = `Audit trail for "${key.name}" (ID #${key.id})`;
         auditList.replaceChildren();
         auditEmpty.hidden = true;
@@ -408,6 +411,15 @@ export function initKeys({ onSelect, onError }) {
             showError(createError, `${error.message}${detail}`);
         } finally {
             button.disabled = false;
+        }
+    });
+
+    auditExportBtn?.addEventListener('click', async () => {
+        if (!currentAuditKeyId) return;
+        try {
+            await api.downloadAuditLogsCsv(currentAuditKeyId);
+        } catch (err) {
+            alert(`Failed to export audit logs: ${err.message}`);
         }
     });
 
