@@ -158,4 +158,69 @@ class ApiUsageServiceTest {
                 apiUsageService.getPaginatedUsage(owner, KEY_ID, true, pageable);
         assertEquals(1, filteredResult.getTotalElements());
     }
+
+    @Test
+    @DisplayName("Account usage stats aggregates metrics across all user keys")
+    void getAccountUsageStatsAggregatesAcrossAllKeys() {
+        when(apiUsageRepository.countByUserId(1L)).thenReturn(10L);
+        when(apiUsageRepository.countByUserIdAndSuccessfulTrue(1L)).thenReturn(8L);
+        when(apiUsageRepository.countByUserIdAndSuccessfulFalse(1L)).thenReturn(2L);
+        when(apiUsageRepository.countRequestsByEndpointForUser(1L)).thenReturn(List.of(
+                new com.keyvault.dto.EndpointUsageCount("/api/protected/read", 7L),
+                new com.keyvault.dto.EndpointUsageCount("/api/protected/write", 3L)
+        ));
+
+        ApiUsageStatsResponse stats = apiUsageService.getAccountUsageStats(owner);
+
+        assertEquals(10L, stats.getTotalRequests());
+        assertEquals(8L, stats.getSuccessfulRequests());
+        assertEquals(2L, stats.getFailedRequests());
+        assertEquals(7L, stats.getRequestsByEndpoint().get("/api/protected/read"));
+        assertEquals(3L, stats.getRequestsByEndpoint().get("/api/protected/write"));
+    }
+
+    @Test
+    @DisplayName("Account recent usage returns top records across all user keys")
+    void getAccountRecentUsageReturnsTopRecords() {
+        ApiUsage usage = ApiUsage.builder()
+                .apiKey(ownedKey)
+                .endpoint("/api/protected/read")
+                .httpMethod("GET")
+                .statusCode(200)
+                .successful(true)
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        when(apiUsageRepository.findRecentByUserId(org.mockito.ArgumentMatchers.eq(1L), org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(List.of(usage));
+
+        List<ApiUsageSummaryResponse> recent = apiUsageService.getAccountRecentUsage(owner);
+
+        assertEquals(1, recent.size());
+        assertEquals("Owned Key", recent.get(0).getKeyName());
+        assertEquals(KEY_ID, recent.get(0).getApiKeyId());
+    }
+
+    @Test
+    @DisplayName("Exporting account usage produces RFC 4180 CSV with key name and ID")
+    void exportAccountUsageLogsAsCsvProducesExpectedContent() {
+        ApiUsage usage = ApiUsage.builder()
+                .apiKey(ownedKey)
+                .endpoint("/api/protected/read")
+                .httpMethod("GET")
+                .statusCode(200)
+                .successful(true)
+                .timestamp(LocalDateTime.of(2026, 10, 26, 12, 0, 0))
+                .build();
+
+        when(apiUsageRepository.findByUserIdOrderByTimestampDesc(1L)).thenReturn(List.of(usage));
+
+        byte[] csvBytes = apiUsageService.exportAccountUsageLogsAsCsv(owner);
+        String csv = new String(csvBytes, java.nio.charset.StandardCharsets.UTF_8);
+
+        org.junit.jupiter.api.Assertions.assertTrue(csv.startsWith("Timestamp,Key ID,Key Name,HTTP Method,Endpoint,Status Code,Success"));
+        org.junit.jupiter.api.Assertions.assertTrue(csv.contains("Owned Key"));
+        org.junit.jupiter.api.Assertions.assertTrue(csv.contains(String.valueOf(KEY_ID)));
+        org.junit.jupiter.api.Assertions.assertTrue(csv.contains("/api/protected/read"));
+    }
 }

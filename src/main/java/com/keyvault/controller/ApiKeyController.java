@@ -261,6 +261,58 @@ public class ApiKeyController {
                 .body(csvBytes);
     }
 
+    @GetMapping("/usage/stats")
+    @Operation(summary = "Get Account API Usage Statistics", description = "Retrieve aggregate request statistics (total, successful, failed, and endpoint breakdown) across all API keys owned by the user.")
+    public ResponseEntity<ApiUsageStatsResponse> getAccountUsageStats(Authentication authentication) {
+        User user = getUser(authentication);
+        ApiUsageStatsResponse response = apiUsageService.getAccountUsageStats(user);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/usage/recent")
+    @Operation(summary = "Get Recent Account API Usage Logs", description = "Retrieve up to 10 recent usage records across all API keys owned by the user.")
+    public ResponseEntity<List<ApiUsageSummaryResponse>> getAccountRecentUsage(Authentication authentication) {
+        User user = getUser(authentication);
+        List<ApiUsageSummaryResponse> response = apiUsageService.getAccountRecentUsage(user);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/usage/logs")
+    @Operation(summary = "Get Paginated Account API Usage Logs", description = "Query paginated usage logs across all API keys owned by the user, with optional filtering by key ID, success status, HTTP method, endpoint, and date range.")
+    public ResponseEntity<org.springframework.data.domain.Page<ApiUsageSummaryResponse>> getAccountPaginatedUsage(
+            Authentication authentication,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Long apiKeyId,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Boolean successful,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String httpMethod,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String endpoint,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+            java.time.LocalDateTime startDate,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME)
+            java.time.LocalDateTime endDate,
+            @org.springdoc.core.annotations.ParameterObject
+            @org.springframework.data.web.PageableDefault(size = 20, sort = "timestamp", direction = org.springframework.data.domain.Sort.Direction.DESC)
+            org.springframework.data.domain.Pageable pageable
+    ) {
+        User user = getUser(authentication);
+        org.springframework.data.domain.Page<ApiUsageSummaryResponse> page =
+                apiUsageService.getAccountPaginatedUsage(user, apiKeyId, successful, httpMethod, endpoint, startDate, endDate, pageable);
+        return ResponseEntity.ok(page);
+    }
+
+    @GetMapping(value = "/usage/export", produces = "text/csv")
+    @Operation(summary = "Export Account API Usage Logs as CSV", description = "Download full usage history across all API keys owned by the user as a formatted CSV file.")
+    public ResponseEntity<byte[]> exportAccountUsageCsv(Authentication authentication) {
+        User user = getUser(authentication);
+        byte[] csvBytes = apiUsageService.exportAccountUsageLogsAsCsv(user);
+
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"user-usage-logs.csv\"")
+                .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, "text/csv; charset=UTF-8")
+                .body(csvBytes);
+    }
+
     @GetMapping("/{id}/audit-logs")
     @Operation(summary = "Get API Key Audit Logs", description = "Retrieve immutable lifecycle audit events for a specific API key.")
     public ResponseEntity<List<com.keyvault.dto.ApiKeyAuditLogResponse>> getAuditLogsForKey(

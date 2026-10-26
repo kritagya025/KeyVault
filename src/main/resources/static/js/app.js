@@ -31,6 +31,7 @@ async function showAppView() {
         const me = await api.me();
         $('#current-user').textContent = me.email;
         await keys.refresh();
+        usage.loadAccount();
     } catch (error) {
         // A rejected token means the stored session is stale or the server restarted
         // with a different signing key; either way the fix is to sign in again.

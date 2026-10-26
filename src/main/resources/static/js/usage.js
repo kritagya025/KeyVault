@@ -53,6 +53,29 @@ export function initUsage({ onError }) {
         }
     }
 
+    async function loadAccount() {
+        activeKey = null;
+        subject.textContent = 'Account: All API Keys';
+        panel.hidden = false;
+        refreshButton.hidden = false;
+        exportButton.hidden = false;
+        clearButton.hidden = true;
+
+        try {
+            const [stats, recent] = await Promise.all([
+                api.accountUsageStats(),
+                api.accountRecentUsage(),
+            ]);
+
+            $('#stat-total').textContent = stats.totalRequests;
+            $('#stat-success').textContent = stats.successfulRequests;
+            $('#stat-failed').textContent = stats.failedRequests;
+            renderLog(recent);
+        } catch (error) {
+            onError(error.message);
+        }
+    }
+
     clearButton.addEventListener('click', async () => {
         if (!activeKey) return;
         try {
@@ -65,12 +88,16 @@ export function initUsage({ onError }) {
 
     refreshButton.addEventListener('click', () => {
         if (activeKey) load(activeKey);
+        else loadAccount();
     });
 
     exportButton.addEventListener('click', async () => {
-        if (!activeKey) return;
         try {
-            await api.downloadUsageCsv(activeKey.id);
+            if (activeKey) {
+                await api.downloadUsageCsv(activeKey.id);
+            } else {
+                await api.downloadAccountUsageCsv();
+            }
         } catch (error) {
             onError(error.message);
         }
@@ -125,5 +152,5 @@ export function initUsage({ onError }) {
         $('#test-key').value = '';
     }
 
-    return { load, reset };
+    return { load, loadAccount, reset };
 }

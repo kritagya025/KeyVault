@@ -39,6 +39,16 @@ public interface ApiUsageRepository extends JpaRepository<ApiUsage, Long>, org.s
            "FROM ApiUsage u WHERE u.apiKey.id = :apiKeyId GROUP BY u.endpoint ORDER BY COUNT(u) DESC")
     List<com.keyvault.dto.EndpointUsageCount> countRequestsByEndpoint(@Param("apiKeyId") Long apiKeyId);
 
+    @Query("SELECT u FROM ApiUsage u WHERE u.apiKey.user.id = :userId ORDER BY u.timestamp DESC")
+    List<ApiUsage> findRecentByUserId(@Param("userId") Long userId, org.springframework.data.domain.Pageable pageable);
+
+    @Query("SELECT u FROM ApiUsage u WHERE u.apiKey.user.id = :userId ORDER BY u.timestamp DESC")
+    List<ApiUsage> findByUserIdOrderByTimestampDesc(@Param("userId") Long userId);
+
+    @Query("SELECT new com.keyvault.dto.EndpointUsageCount(u.endpoint, COUNT(u)) " +
+           "FROM ApiUsage u WHERE u.apiKey.user.id = :userId GROUP BY u.endpoint ORDER BY COUNT(u) DESC")
+    List<com.keyvault.dto.EndpointUsageCount> countRequestsByEndpointForUser(@Param("userId") Long userId);
+
     @Modifying
     @Query("DELETE FROM ApiUsage u WHERE u.apiKey.id = :apiKeyId")
     int deleteByApiKeyId(@Param("apiKeyId") Long apiKeyId);

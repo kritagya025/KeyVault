@@ -179,6 +179,110 @@ public class ApiUsageService {
         return csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
     }
 
+    @Transactional(readOnly = true)
+    public ApiUsageStatsResponse getAccountUsageStats(User user) {
+        long total = apiUsageRepository.countByUserId(user.getId());
+        long successful = apiUsageRepository.countByUserIdAndSuccessfulTrue(user.getId());
+        long failed = apiUsageRepository.countByUserIdAndSuccessfulFalse(user.getId());
+
+        java.util.Map<String, Long> requestsByEndpoint = new java.util.LinkedHashMap<>();
+        for (com.keyvault.dto.EndpointUsageCount count : apiUsageRepository.countRequestsByEndpointForUser(user.getId())) {
+            requestsByEndpoint.put(count.getEndpoint(), count.getCount());
+        }
+
+        return ApiUsageStatsResponse.builder()
+                .apiKeyId(null)
+                .totalRequests(total)
+                .successfulRequests(successful)
+                .failedRequests(failed)
+                .requestsByEndpoint(requestsByEndpoint)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ApiUsageSummaryResponse> getAccountRecentUsage(User user) {
+        return apiUsageRepository.findRecentByUserId(user.getId(), org.springframework.data.domain.PageRequest.of(0, 10))
+                .stream()
+                .map(ApiUsageSummaryResponse::fromEntity)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<ApiUsageSummaryResponse> getAccountPaginatedUsage(
+            User user,
+            Long apiKeyId,
+            Boolean successful,
+            String httpMethod,
+            String endpoint,
+            java.time.LocalDateTime startDate,
+            java.time.LocalDateTime endDate,
+            org.springframework.data.domain.Pageable pageable
+    ) {
+        if (apiKeyId != null) {
+            verifyApiKeyOwnership(user, apiKeyId);
+        }
+
+        boolean hasMethod = httpMethod != null && !httpMethod.trim().isEmpty();
+        boolean hasEndpoint = endpoint != null && !endpoint.trim().isEmpty();
+        boolean hasDateFilter = startDate != null || endDate != null;
+
+        org.springframework.data.jpa.domain.Specification<ApiUsage> spec = (root, query, cb) -> {
+            java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+            predicates.add(cb.equal(root.get("apiKey").get("user").get("id"), user.getId()));
+
+            if (apiKeyId != null) {
+                predicates.add(cb.equal(root.get("apiKey").get("id"), apiKeyId));
+            }
+
+            if (successful != null) {
+                predicates.add(cb.equal(root.get("successful"), successful));
+            }
+
+            if (hasMethod) {
+                predicates.add(cb.equal(cb.upper(root.get("httpMethod")), httpMethod.trim().toUpperCase()));
+            }
+
+            if (hasEndpoint) {
+                predicates.add(cb.like(cb.lower(root.get("endpoint")), "%" + endpoint.trim().toLowerCase() + "%"));
+            }
+
+            if (startDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("timestamp"), startDate));
+            }
+
+            if (endDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("timestamp"), endDate));
+            }
+
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        return apiUsageRepository.findAll(spec, pageable).map(ApiUsageSummaryResponse::fromEntity);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportAccountUsageLogsAsCsv(User user) {
+        List<ApiUsage> logs = apiUsageRepository.findByUserIdOrderByTimestampDesc(user.getId());
+
+        StringBuilder csv = new StringBuilder();
+        csv.append("Timestamp,Key ID,Key Name,HTTP Method,Endpoint,Status Code,Success\r\n");
+
+        for (ApiUsage log : logs) {
+            String keyIdStr = log.getApiKey() != null && log.getApiKey().getId() != null ? String.valueOf(log.getApiKey().getId()) : "";
+            String keyNameStr = log.getApiKey() != null && log.getApiKey().getName() != null ? log.getApiKey().getName() : "";
+
+            csv.append(escapeCsv(log.getTimestamp() != null ? log.getTimestamp().toString() : "")).append(",")
+               .append(keyIdStr).append(",")
+               .append(escapeCsv(keyNameStr)).append(",")
+               .append(escapeCsv(log.getHttpMethod())).append(",")
+               .append(escapeCsv(log.getEndpoint())).append(",")
+               .append(log.getStatusCode()).append(",")
+               .append(log.isSuccessful()).append("\r\n");
+        }
+
+        return csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
     private String escapeCsv(String val) {
         if (val == null) {
             return "";

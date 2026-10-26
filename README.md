@@ -271,6 +271,10 @@ Use the **Authorize** button in Swagger UI to test endpoints:
 | `GET` | `/api/keys/{id}/usage/logs` | JWT | Query paginated usage logs with optional status, method, endpoint, and date range filtering (`?page=0&size=20&successful=true&httpMethod=POST&endpoint=read&startDate=...&endDate=...`). |
 | `DELETE` | `/api/keys/{id}/usage/logs` | JWT | Purge historical usage logs for an API key, with optional `?beforeDate=` cutoff. |
 | `GET` | `/api/keys/{id}/usage/export` | JWT | Download complete historical usage logs formatted as a standard CSV file. |
+| `GET` | `/api/keys/usage/stats` | JWT | Get aggregate request statistics across all API keys owned by the user (`totalRequests`, `successfulRequests`, `failedRequests`, and `requestsByEndpoint`). |
+| `GET` | `/api/keys/usage/recent` | JWT | Get top 10 recent request log records across all user's API keys with key ID and key name. |
+| `GET` | `/api/keys/usage/logs` | JWT | Query paginated usage logs across all user's keys with optional `?apiKeyId=`, `?successful=`, `?httpMethod=`, `?endpoint=`, `?startDate=`, and `?endDate=` filtering. |
+| `GET` | `/api/keys/usage/export` | JWT | Download complete account-wide usage logs formatted as a standard CSV file (`user-usage-logs.csv`). |
 
 ### 4. Protected Consumer APIs
 | Method | Endpoint | Auth | Description |

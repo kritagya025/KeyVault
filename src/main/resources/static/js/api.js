@@ -129,6 +129,22 @@ export const api = {
 
     recentUsage: (id) => request('GET', `/api/keys/${id}/usage/recent`),
 
+    accountUsageStats: () => request('GET', '/api/keys/usage/stats'),
+
+    accountRecentUsage: () => request('GET', '/api/keys/usage/recent'),
+
+    accountPaginatedUsage: (params = {}) => {
+        const q = new URLSearchParams();
+        if (params.apiKeyId) q.set('apiKeyId', params.apiKeyId);
+        if (params.successful !== undefined) q.set('successful', params.successful);
+        if (params.httpMethod) q.set('httpMethod', params.httpMethod);
+        if (params.endpoint) q.set('endpoint', params.endpoint);
+        if (params.page !== undefined) q.set('page', params.page);
+        if (params.size !== undefined) q.set('size', params.size);
+        const qs = q.toString();
+        return request('GET', `/api/keys/usage/logs${qs ? '?' + qs : ''}`);
+    },
+
     clearUsageLogs: (id, beforeDate) => request('DELETE', `/api/keys/${id}/usage/logs${beforeDate ? '?beforeDate=' + encodeURIComponent(beforeDate) : ''}`),
 
     downloadUsageCsv: async (id) => {
@@ -142,6 +158,23 @@ export const api = {
         const a = document.createElement('a');
         a.href = url;
         a.download = `api-key-${id}-usage.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    },
+
+    downloadAccountUsageCsv: async () => {
+        const bearer = token.get();
+        const headers = {};
+        if (bearer) headers.Authorization = `Bearer ${bearer}`;
+        const res = await fetch('/api/keys/usage/export', { headers });
+        if (!res.ok) throw new ApiError(res.status, 'Failed to export account usage CSV');
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'user-usage-logs.csv';
         document.body.appendChild(a);
         a.click();
         a.remove();
