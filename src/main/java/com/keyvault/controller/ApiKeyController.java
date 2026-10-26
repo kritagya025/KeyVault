@@ -181,6 +181,18 @@ public class ApiKeyController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PostMapping("/{id}/renew")
+    @Operation(summary = "Renew API Key Expiration", description = "Extend the expiration of an active or expired API key by a specified number of days (default 30) or until an explicit date. Revoked keys cannot be renewed.")
+    public ResponseEntity<ApiKeyResponse> renewApiKey(
+            Authentication authentication,
+            @PathVariable Long id,
+            @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody(required = false) com.keyvault.dto.RenewApiKeyRequest request
+    ) {
+        User user = getUser(authentication);
+        ApiKeyResponse response = apiKeyService.renewApiKey(user, id, request);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/{id}/usage")
     @Operation(summary = "Get API Key Usage Statistics", description = "Retrieve aggregate request statistics (total, successful, failed) for an API key owned by the user.")
     public ResponseEntity<ApiUsageStatsResponse> getUsageStats(

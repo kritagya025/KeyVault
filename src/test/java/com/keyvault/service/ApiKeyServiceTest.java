@@ -377,4 +377,51 @@ class ApiKeyServiceTest {
         assertEquals(45L, summary.getSuccessfulRequests());
         assertEquals(5L, summary.getFailedRequests());
     }
+
+    @Test
+    @DisplayName("Renewing an active key extends its expiration date")
+    void renewApiKeyExtendsActiveKey() {
+        LocalDateTime initialExpiry = LocalDateTime.now().plusDays(5);
+        ApiKey key = storedKey(40L, owner, LocalDateTime.now(), initialExpiry, false);
+        when(apiKeyRepository.findById(40L)).thenReturn(Optional.of(key));
+        stubSaveEchoingArgument();
+
+        ApiKeyResponse response = apiKeyService.renewApiKey(owner, 40L,
+                com.keyvault.dto.RenewApiKeyRequest.builder().extensionDays(30).build());
+
+        assertTrue(response.getExpiresAt().isAfter(initialExpiry));
+        assertEquals("ACTIVE", response.getStatus());
+        verify(auditLogService).recordEvent(
+                org.mockito.ArgumentMatchers.eq(40L),
+                org.mockito.ArgumentMatchers.eq("Stored Key"),
+                org.mockito.ArgumentMatchers.eq(OWNER_ID),
+                org.mockito.ArgumentMatchers.eq("RENEWED"),
+                org.mockito.ArgumentMatchers.contains("Key expiration extended")
+        );
+    }
+
+    @Test
+    @DisplayName("Renewing a revoked key throws IllegalStateException")
+    void renewApiKeyRejectsRevokedKey() {
+        ApiKey revoked = storedKey(41L, owner, LocalDateTime.now(), null, true);
+        when(apiKeyRepository.findById(41L)).thenReturn(Optional.of(revoked));
+
+        assertThrows(IllegalStateException.class, () -> apiKeyService.renewApiKey(owner, 41L, null));
+    }
+
+    @Test
+    @DisplayName("Filtering by EXPIRING_SOON returns only active keys expiring within 7 days")
+    void getUserApiKeysFiltersExpiringSoon() {
+        LocalDateTime now = LocalDateTime.now();
+        ApiKey expiringSoon = storedKey(50L, owner, now.minusDays(20), now.plusDays(3), false);
+        ApiKey farFuture = storedKey(51L, owner, now.minusDays(5), now.plusDays(40), false);
+        ApiKey expired = storedKey(52L, owner, now.minusDays(40), now.minusDays(2), false);
+
+        when(apiKeyRepository.findByUserId(OWNER_ID)).thenReturn(List.of(expiringSoon, farFuture, expired));
+
+        List<ApiKeyResponse> results = apiKeyService.getUserApiKeys(owner, "EXPIRING_SOON", null);
+
+        assertEquals(1, results.size());
+        assertEquals(50L, results.get(0).getId());
+    }
 }

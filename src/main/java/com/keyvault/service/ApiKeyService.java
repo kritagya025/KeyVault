@@ -115,12 +115,22 @@ public class ApiKeyService {
 
         if (status != null && !status.trim().isEmpty()) {
             String normalizedStatus = status.trim().toUpperCase();
-            if (!Set.of("ACTIVE", "REVOKED", "EXPIRED").contains(normalizedStatus)) {
-                throw new IllegalArgumentException("Invalid status filter: " + status + ". Allowed values: ACTIVE, REVOKED, EXPIRED");
+            if (!Set.of("ACTIVE", "REVOKED", "EXPIRED", "EXPIRING_SOON").contains(normalizedStatus)) {
+                throw new IllegalArgumentException("Invalid status filter: " + status + ". Allowed values: ACTIVE, REVOKED, EXPIRED, EXPIRING_SOON");
             }
-            keys = keys.stream()
-                    .filter(key -> ApiKeyResponse.calculateStatus(key).equals(normalizedStatus))
-                    .toList();
+            if ("EXPIRING_SOON".equals(normalizedStatus)) {
+                LocalDateTime now = LocalDateTime.now();
+                keys = keys.stream()
+                        .filter(key -> !key.isRevoked() &&
+                                       key.getExpiresAt() != null &&
+                                       key.getExpiresAt().isAfter(now) &&
+                                       java.time.Duration.between(now, key.getExpiresAt()).toDays() <= 7)
+                        .toList();
+            } else {
+                keys = keys.stream()
+                        .filter(key -> ApiKeyResponse.calculateStatus(key).equals(normalizedStatus))
+                        .toList();
+            }
         }
 
         if (query != null && !query.trim().isEmpty()) {
@@ -403,6 +413,51 @@ public class ApiKeyService {
         ApiKey savedNewKey = apiKeyRepository.save(newKey);
         auditLogService.recordEvent(savedNewKey.getId(), savedNewKey.getName(), user.getId(), "ROTATED", "Key rotated from previous key #" + oldKey.getId());
         return toCreateResponse(savedNewKey, newRawApiKey);
+    }
+
+    /**
+     * Extends or updates the expiration of an active or expired API key.
+     * Revoked keys cannot be renewed.
+     *
+     * @param user the key owner
+     * @param id the API key id
+     * @param request renewal parameters (extensionDays or newExpiresAt)
+     * @return updated key response
+     */
+    @Transactional
+    public ApiKeyResponse renewApiKey(User user, Long id, com.keyvault.dto.RenewApiKeyRequest request) {
+        ApiKey apiKey = findApiKeyAndVerifyOwnership(user, id);
+
+        if (apiKey.isRevoked()) {
+            throw new IllegalStateException("Cannot renew a revoked API key");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime newExpiry;
+
+        if (request != null && request.getNewExpiresAt() != null) {
+            if (request.getNewExpiresAt().isBefore(now)) {
+                throw new IllegalArgumentException("New expiration date must be in the future");
+            }
+            newExpiry = request.getNewExpiresAt();
+        } else {
+            int days = (request != null && request.getExtensionDays() != null)
+                    ? request.getExtensionDays()
+                    : 30;
+
+            if (apiKey.getExpiresAt() != null && apiKey.getExpiresAt().isAfter(now)) {
+                newExpiry = apiKey.getExpiresAt().plusDays(days);
+            } else {
+                newExpiry = now.plusDays(days);
+            }
+        }
+
+        apiKey.setExpiresAt(newExpiry);
+        ApiKey saved = apiKeyRepository.save(apiKey);
+
+        auditLogService.recordEvent(saved.getId(), saved.getName(), user.getId(), "RENEWED", "Key expiration extended to " + newExpiry);
+
+        return ApiKeyResponse.fromEntity(saved);
     }
 
     /**

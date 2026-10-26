@@ -251,8 +251,8 @@ Use the **Authorize** button in Swagger UI to test endpoints:
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/keys` | JWT | Generate new API key with permissions (`READ`, `WRITE`), optional environment (`DEVELOPMENT`, `STAGING`, `PRODUCTION`), IP restrictions, description, tags, rate limit, and expiry. Returns raw key once. |
-| `GET` | `/api/keys` | JWT | List API keys owned by current user with optional `?status=ACTIVE`, `?query=name`, `?environment=PRODUCTION`, and `?tag=backend` filters. |
-| `GET` | `/api/keys/export` | JWT | Download complete API keys catalog as a formatted CSV file with optional `?status=`, `?query=`, `?environment=`, and `?tag=` filtering. |
+| `GET` | `/api/keys` | JWT | List API keys owned by current user with optional `?status=ACTIVE` (supports `ACTIVE`, `REVOKED`, `EXPIRED`, `EXPIRING_SOON`), `?query=name`, `?environment=PRODUCTION`, and `?tag=backend` filters. |
+| `GET` | `/api/keys/export` | JWT | Download complete API keys catalog as a formatted CSV file with optional `?status=` (`ACTIVE`, `REVOKED`, `EXPIRED`, `EXPIRING_SOON`), `?query=`, `?environment=`, and `?tag=` filtering. |
 | `GET` | `/api/keys/summary` | JWT | Get account-level overview metrics (key counts by status, expiring-soon keys count, aggregate total/successful/failed requests). |
 | `GET` | `/api/keys/{id}` | JWT | Get single API key metadata, permissions, status, environment, description, tags, `maskedKey`, `rateLimit`, `ipRestrictions`, `expiringSoon`, and `lastUsedAt`. |
 | `PATCH` | `/api/keys/{id}` | JWT | Update key name, description, tags, permissions, environment, rate limit, IP restrictions, extend `expiresAt`, or clear expiration. |
@@ -262,6 +262,7 @@ Use the **Authorize** button in Swagger UI to test endpoints:
 | `POST` | `/api/keys/bulk-delete` | JWT | Bulk delete multiple API keys and their associated usage records by ID. |
 | `POST` | `/api/keys/{id}/regenerate` | JWT | Regenerate an `ACTIVE` or `EXPIRED` key. Issues new raw key once. |
 | `POST` | `/api/keys/{id}/rotate` | JWT | Rotate an API key with zero downtime, giving old key an overlapping grace period (default 24h). |
+| `POST` | `/api/keys/{id}/renew` | JWT | Extend expiration of an active or expired API key by a specified number of days (`extensionDays`, default 30) or explicit date (`newExpiresAt`). |
 | `GET` | `/api/keys/{id}/audit-logs` | JWT | Retrieve immutable lifecycle audit trail for a specific API key. |
 | `GET` | `/api/keys/{id}/audit-logs/export` | JWT | Download immutable audit logs for a specific API key as a formatted CSV file. |
 | `GET` | `/api/keys/audit-logs` | JWT | Query paginated audit log events across all API keys owned by the user. |

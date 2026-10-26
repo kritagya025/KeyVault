@@ -125,6 +125,8 @@ export const api = {
 
     rotateKey: (id, payload = {}) => request('POST', `/api/keys/${id}/rotate`, { body: payload }),
 
+    renewKey: (id, payload = {}) => request('POST', `/api/keys/${id}/renew`, { body: payload }),
+
     usageStats: (id) => request('GET', `/api/keys/${id}/usage`),
 
     recentUsage: (id) => request('GET', `/api/keys/${id}/usage/recent`),

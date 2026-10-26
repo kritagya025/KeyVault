@@ -301,6 +301,19 @@ export function initKeys({ onSelect, onError }) {
             ));
 
             group.append(armable(
+                el('button', { className: 'btn btn--ghost btn--sm', text: 'Renew' }),
+                'Extend +30d?',
+                async () => {
+                    try {
+                        await api.renewKey(key.id, { extensionDays: 30 });
+                        await refresh();
+                    } catch (error) {
+                        onError(error.message);
+                    }
+                },
+            ));
+
+            group.append(armable(
                 el('button', { className: 'btn btn--ghost btn--sm', text: 'Revoke' }),
                 'Confirm revoke',
                 async () => {
