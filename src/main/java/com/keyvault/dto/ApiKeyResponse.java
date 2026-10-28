@@ -25,6 +25,7 @@ public class ApiKeyResponse {
     private LocalDateTime createdAt;
     private LocalDateTime lastUsedAt;
     private boolean revoked;
+    private boolean paused;
     private String status;
     private Set<Permission> permissions;
     private Set<String> ipRestrictions;
@@ -40,7 +41,7 @@ public class ApiKeyResponse {
             LocalDateTime now = LocalDateTime.now();
             long days = java.time.Duration.between(now, apiKey.getExpiresAt()).toDays();
             daysRemaining = days;
-            if (!apiKey.isRevoked() && apiKey.getExpiresAt().isAfter(now) && days <= 7) {
+            if (!apiKey.isRevoked() && !apiKey.isPaused() && apiKey.getExpiresAt().isAfter(now) && days <= 7) {
                 isExpiringSoon = true;
             }
         }
@@ -55,6 +56,7 @@ public class ApiKeyResponse {
                 .createdAt(apiKey.getCreatedAt())
                 .lastUsedAt(apiKey.getLastUsedAt())
                 .revoked(apiKey.isRevoked())
+                .paused(apiKey.isPaused())
                 .status(calculateStatus(apiKey))
                 .permissions(apiKey.getPermissions())
                 .ipRestrictions(apiKey.getIpRestrictions())
@@ -68,6 +70,9 @@ public class ApiKeyResponse {
     public static String calculateStatus(ApiKey apiKey) {
         if (apiKey.isRevoked()) {
             return "REVOKED";
+        }
+        if (apiKey.isPaused()) {
+            return "PAUSED";
         }
         if (apiKey.getExpiresAt() != null && apiKey.getExpiresAt().isBefore(LocalDateTime.now())) {
             return "EXPIRED";

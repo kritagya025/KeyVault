@@ -115,13 +115,14 @@ public class ApiKeyService {
 
         if (status != null && !status.trim().isEmpty()) {
             String normalizedStatus = status.trim().toUpperCase();
-            if (!Set.of("ACTIVE", "REVOKED", "EXPIRED", "EXPIRING_SOON").contains(normalizedStatus)) {
-                throw new IllegalArgumentException("Invalid status filter: " + status + ". Allowed values: ACTIVE, REVOKED, EXPIRED, EXPIRING_SOON");
+            if (!Set.of("ACTIVE", "REVOKED", "EXPIRED", "EXPIRING_SOON", "PAUSED").contains(normalizedStatus)) {
+                throw new IllegalArgumentException("Invalid status filter: " + status + ". Allowed values: ACTIVE, REVOKED, EXPIRED, EXPIRING_SOON, PAUSED");
             }
             if ("EXPIRING_SOON".equals(normalizedStatus)) {
                 LocalDateTime now = LocalDateTime.now();
                 keys = keys.stream()
                         .filter(key -> !key.isRevoked() &&
+                                       !key.isPaused() &&
                                        key.getExpiresAt() != null &&
                                        key.getExpiresAt().isAfter(now) &&
                                        java.time.Duration.between(now, key.getExpiresAt()).toDays() <= 7)
@@ -221,6 +222,63 @@ public class ApiKeyService {
             auditLogService.recordEvent(apiKey.getId(), apiKey.getName(), user.getId(), "REVOKED", "Key revoked by user");
         }
         return ApiKeyResponse.fromEntity(apiKey);
+    }
+
+    /**
+     * Temporarily deactivates an active API key without revoking it permanently.
+     * Paused keys cannot authenticate until resumed.
+     *
+     * @param user the key owner
+     * @param id the API key id
+     * @return updated key response
+     */
+    @Transactional
+    public ApiKeyResponse pauseApiKey(User user, Long id) {
+        ApiKey apiKey = findApiKeyAndVerifyOwnership(user, id);
+
+        if (apiKey.isRevoked()) {
+            throw new IllegalStateException("Cannot pause a revoked API key");
+        }
+        if (apiKey.getExpiresAt() != null && apiKey.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("Cannot pause an expired API key");
+        }
+        if (apiKey.isPaused()) {
+            throw new IllegalStateException("API key is already paused");
+        }
+
+        apiKey.setPaused(true);
+        ApiKey saved = apiKeyRepository.save(apiKey);
+        auditLogService.recordEvent(saved.getId(), saved.getName(), user.getId(), "PAUSED", "API key temporarily paused");
+
+        return ApiKeyResponse.fromEntity(saved);
+    }
+
+    /**
+     * Resumes a previously paused API key, restoring its ability to authenticate.
+     *
+     * @param user the key owner
+     * @param id the API key id
+     * @return updated key response
+     */
+    @Transactional
+    public ApiKeyResponse resumeApiKey(User user, Long id) {
+        ApiKey apiKey = findApiKeyAndVerifyOwnership(user, id);
+
+        if (apiKey.isRevoked()) {
+            throw new IllegalStateException("Cannot resume a revoked API key");
+        }
+        if (apiKey.getExpiresAt() != null && apiKey.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("Cannot resume an expired API key");
+        }
+        if (!apiKey.isPaused()) {
+            throw new IllegalStateException("API key is not paused");
+        }
+
+        apiKey.setPaused(false);
+        ApiKey saved = apiKeyRepository.save(apiKey);
+        auditLogService.recordEvent(saved.getId(), saved.getName(), user.getId(), "RESUMED", "API key resumed from paused state");
+
+        return ApiKeyResponse.fromEntity(saved);
     }
 
     /**

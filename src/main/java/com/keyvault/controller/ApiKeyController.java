@@ -125,6 +125,28 @@ public class ApiKeyController {
         return ResponseEntity.ok(response);
     }
 
+    @PatchMapping("/{id}/pause")
+    @Operation(summary = "Pause API Key", description = "Temporarily deactivate an active API key without revoking it. Paused keys will be rejected during authentication until resumed.")
+    public ResponseEntity<ApiKeyResponse> pauseApiKey(
+            Authentication authentication,
+            @PathVariable Long id
+    ) {
+        User user = getUser(authentication);
+        ApiKeyResponse response = apiKeyService.pauseApiKey(user, id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{id}/resume")
+    @Operation(summary = "Resume API Key", description = "Restore a paused API key to active service.")
+    public ResponseEntity<ApiKeyResponse> resumeApiKey(
+            Authentication authentication,
+            @PathVariable Long id
+    ) {
+        User user = getUser(authentication);
+        ApiKeyResponse response = apiKeyService.resumeApiKey(user, id);
+        return ResponseEntity.ok(response);
+    }
+
     @org.springframework.web.bind.annotation.DeleteMapping("/{id}")
     @Operation(summary = "Delete API Key", description = "Permanently delete an API key and remove associated usage history.")
     public ResponseEntity<Void> deleteApiKey(

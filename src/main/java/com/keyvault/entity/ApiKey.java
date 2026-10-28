@@ -62,6 +62,10 @@ public class ApiKey {
     @Builder.Default
     private boolean revoked = false;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean paused = false;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "environment", nullable = false)
     @Builder.Default

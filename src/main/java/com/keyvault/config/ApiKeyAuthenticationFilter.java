@@ -51,6 +51,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 ApiKey apiKey = apiKeyOptional.get();
 
                 boolean isNotRevoked = !apiKey.isRevoked();
+                boolean isNotPaused = !apiKey.isPaused();
                 boolean isNotExpired = apiKey.getExpiresAt() == null || apiKey.getExpiresAt().isAfter(LocalDateTime.now());
                 boolean isIpAllowed = true;
                 if (apiKey.getIpRestrictions() != null && !apiKey.getIpRestrictions().isEmpty()) {
@@ -59,7 +60,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                             .anyMatch(rule -> com.keyvault.util.IpUtils.matches(clientIp, rule));
                 }
 
-                if (isNotRevoked && isNotExpired && isIpAllowed) {
+                if (isNotRevoked && isNotPaused && isNotExpired && isIpAllowed) {
                     User owner = apiKey.getUser();
 
                     List<SimpleGrantedAuthority> authorities = apiKey.getPermissions().stream()

@@ -476,4 +476,54 @@ class ApiKeyServiceTest {
 
         assertThrows(IllegalStateException.class, () -> apiKeyService.duplicateApiKey(owner, 61L, null));
     }
+
+    @Test
+    @DisplayName("Pausing an active key updates status to PAUSED and logs audit event")
+    void pauseApiKeyUpdatesStatus() {
+        ApiKey active = storedKey(70L, owner, LocalDateTime.now(), null, false);
+        when(apiKeyRepository.findById(70L)).thenReturn(Optional.of(active));
+        stubSaveEchoingArgument();
+
+        ApiKeyResponse response = apiKeyService.pauseApiKey(owner, 70L);
+
+        assertTrue(response.isPaused());
+        assertEquals("PAUSED", response.getStatus());
+        verify(auditLogService).recordEvent(
+                org.mockito.ArgumentMatchers.eq(70L),
+                org.mockito.ArgumentMatchers.eq("Stored Key"),
+                org.mockito.ArgumentMatchers.eq(OWNER_ID),
+                org.mockito.ArgumentMatchers.eq("PAUSED"),
+                org.mockito.ArgumentMatchers.contains("temporarily paused")
+        );
+    }
+
+    @Test
+    @DisplayName("Resuming a paused key restores status to ACTIVE and logs audit event")
+    void resumeApiKeyRestoresActiveStatus() {
+        ApiKey paused = storedKey(71L, owner, LocalDateTime.now(), null, false);
+        paused.setPaused(true);
+        when(apiKeyRepository.findById(71L)).thenReturn(Optional.of(paused));
+        stubSaveEchoingArgument();
+
+        ApiKeyResponse response = apiKeyService.resumeApiKey(owner, 71L);
+
+        org.junit.jupiter.api.Assertions.assertFalse(response.isPaused());
+        assertEquals("ACTIVE", response.getStatus());
+        verify(auditLogService).recordEvent(
+                org.mockito.ArgumentMatchers.eq(71L),
+                org.mockito.ArgumentMatchers.eq("Stored Key"),
+                org.mockito.ArgumentMatchers.eq(OWNER_ID),
+                org.mockito.ArgumentMatchers.eq("RESUMED"),
+                org.mockito.ArgumentMatchers.contains("resumed from paused state")
+        );
+    }
+
+    @Test
+    @DisplayName("Pausing a revoked key throws IllegalStateException")
+    void pauseApiKeyRejectsRevokedKey() {
+        ApiKey revoked = storedKey(72L, owner, LocalDateTime.now(), null, true);
+        when(apiKeyRepository.findById(72L)).thenReturn(Optional.of(revoked));
+
+        assertThrows(IllegalStateException.class, () -> apiKeyService.pauseApiKey(owner, 72L));
+    }
 }
