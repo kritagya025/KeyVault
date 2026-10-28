@@ -85,4 +85,82 @@ public final class IpUtils {
             return false;
         }
     }
+
+    public static boolean isValidIpOrCidr(String rule) {
+        if (!StringUtils.hasText(rule)) {
+            return false;
+        }
+
+        String trimmed = rule.trim();
+        if (trimmed.contains("/")) {
+            String[] parts = trimmed.split("/");
+            if (parts.length != 2) {
+                return false;
+            }
+            String ipPart = parts[0].trim();
+            int prefix;
+            try {
+                prefix = Integer.parseInt(parts[1].trim());
+            } catch (NumberFormatException e) {
+                return false;
+            }
+
+            if (isValidIpv4(ipPart)) {
+                return prefix >= 0 && prefix <= 32;
+            } else if (isValidIpv6(ipPart)) {
+                return prefix >= 0 && prefix <= 128;
+            }
+            return false;
+        } else {
+            return isValidIpv4(trimmed) || isValidIpv6(trimmed);
+        }
+    }
+
+    public static boolean isValidIpv4(String ip) {
+        if (!StringUtils.hasText(ip)) {
+            return false;
+        }
+        String[] octets = ip.split("\\.", -1);
+        if (octets.length != 4) {
+            return false;
+        }
+        for (String octet : octets) {
+            if (octet.isEmpty() || octet.length() > 3) {
+                return false;
+            }
+            for (int i = 0; i < octet.length(); i++) {
+                if (!Character.isDigit(octet.charAt(i))) {
+                    return false;
+                }
+            }
+            if (octet.length() > 1 && octet.startsWith("0")) {
+                return false;
+            }
+            int val;
+            try {
+                val = Integer.parseInt(octet);
+            } catch (NumberFormatException e) {
+                return false;
+            }
+            if (val < 0 || val > 255) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static boolean isValidIpv6(String ip) {
+        if (!StringUtils.hasText(ip) || !ip.contains(":")) {
+            return false;
+        }
+        if (!ip.matches("^[0-9a-fA-F:]+$")) {
+            return false;
+        }
+        try {
+            InetAddress addr = InetAddress.getByName(ip);
+            return addr.getAddress().length == 16;
+        } catch (UnknownHostException e) {
+            return false;
+        }
+    }
 }

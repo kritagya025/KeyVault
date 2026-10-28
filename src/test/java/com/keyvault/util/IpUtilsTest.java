@@ -43,4 +43,41 @@ public class IpUtilsTest {
         assertFalse(IpUtils.matches("192.168.2.1", "192.168.1.0/24"));
         assertTrue(IpUtils.matches("10.5.20.1", "10.0.0.0/8"));
     }
+
+    @Test
+    void testValidIpOrCidr() {
+        // Valid IPv4 addresses
+        assertTrue(IpUtils.isValidIpOrCidr("192.168.1.1"));
+        assertTrue(IpUtils.isValidIpOrCidr("10.0.0.1"));
+        assertTrue(IpUtils.isValidIpOrCidr("127.0.0.1"));
+        assertTrue(IpUtils.isValidIpOrCidr("255.255.255.255"));
+        assertTrue(IpUtils.isValidIpOrCidr("0.0.0.0"));
+
+        // Valid IPv4 CIDRs
+        assertTrue(IpUtils.isValidIpOrCidr("192.168.1.0/24"));
+        assertTrue(IpUtils.isValidIpOrCidr("10.0.0.0/8"));
+        assertTrue(IpUtils.isValidIpOrCidr("0.0.0.0/0"));
+        assertTrue(IpUtils.isValidIpOrCidr("192.168.1.1/32"));
+
+        // Valid IPv6 addresses & CIDRs
+        assertTrue(IpUtils.isValidIpOrCidr("::1"));
+        assertTrue(IpUtils.isValidIpOrCidr("2001:db8::1"));
+        assertTrue(IpUtils.isValidIpOrCidr("2001:db8::/32"));
+        assertTrue(IpUtils.isValidIpOrCidr("::1/128"));
+    }
+
+    @Test
+    void testInvalidIpOrCidr() {
+        assertFalse(IpUtils.isValidIpOrCidr(null));
+        assertFalse(IpUtils.isValidIpOrCidr(""));
+        assertFalse(IpUtils.isValidIpOrCidr("   "));
+        assertFalse(IpUtils.isValidIpOrCidr("invalid-ip"));
+        assertFalse(IpUtils.isValidIpOrCidr("999.999.999.999"));
+        assertFalse(IpUtils.isValidIpOrCidr("192.168.1.1/33"));
+        assertFalse(IpUtils.isValidIpOrCidr("192.168.1.1/-1"));
+        assertFalse(IpUtils.isValidIpOrCidr("192.168.1.1/abc"));
+        assertFalse(IpUtils.isValidIpOrCidr("192.168.1.1/24/12"));
+        assertFalse(IpUtils.isValidIpOrCidr("192.168.1.256"));
+        assertFalse(IpUtils.isValidIpOrCidr("2001:db8::/129"));
+    }
 }

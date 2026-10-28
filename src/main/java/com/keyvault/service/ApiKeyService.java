@@ -52,6 +52,8 @@ public class ApiKeyService {
             throw new IllegalArgumentException("Expiration date must be in the future");
         }
 
+        validateIpRestrictions(request.getIpRestrictions());
+
         Set<Permission> requestedPermissions = request.getPermissions();
         Set<Permission> assignedPermissions = (requestedPermissions == null || requestedPermissions.isEmpty())
                 ? EnumSet.of(Permission.READ)
@@ -319,6 +321,7 @@ public class ApiKeyService {
         }
 
         if (request.getIpRestrictions() != null) {
+            validateIpRestrictions(request.getIpRestrictions());
             apiKey.setIpRestrictions(new java.util.HashSet<>(request.getIpRestrictions()));
         }
 
@@ -691,6 +694,17 @@ public class ApiKeyService {
         }
 
         return csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private void validateIpRestrictions(Set<String> ipRestrictions) {
+        if (ipRestrictions == null) {
+            return;
+        }
+        for (String rule : ipRestrictions) {
+            if (!com.keyvault.util.IpUtils.isValidIpOrCidr(rule)) {
+                throw new IllegalArgumentException("Invalid IP address or CIDR notation: " + rule);
+            }
+        }
     }
 
     private String escapeCsv(String val) {
