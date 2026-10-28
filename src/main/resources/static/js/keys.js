@@ -7,6 +7,7 @@ const BADGE_CLASS = {
     ACTIVE: 'badge badge--active',
     REVOKED: 'badge badge--revoked',
     EXPIRED: 'badge badge--expired',
+    PAUSED: 'badge badge--paused',
 };
 
 /** Milliseconds a destructive button stays armed before reverting. */
@@ -272,6 +273,48 @@ export function initKeys({ onSelect, onError }) {
         group.append(auditButton);
 
         if (key.status !== 'REVOKED') {
+            const dupButton = el('button', { className: 'btn btn--ghost btn--sm', text: 'Duplicate' });
+            dupButton.addEventListener('click', async () => {
+                const customName = prompt('Enter name for duplicate key (optional):', `Copy of ${key.name}`);
+                if (customName === null) return;
+                try {
+                    const result = await api.duplicateKey(key.id, customName ? { name: customName } : {});
+                    await refresh();
+                    reveal('Duplicated API key', result.apiKey);
+                } catch (error) {
+                    onError(error.message);
+                }
+            });
+            group.append(dupButton);
+
+            if (key.status === 'PAUSED') {
+                group.append(armable(
+                    el('button', { className: 'btn btn--ghost btn--sm', text: 'Resume' }),
+                    'Resume key?',
+                    async () => {
+                        try {
+                            await api.resumeKey(key.id);
+                            await refresh();
+                        } catch (error) {
+                            onError(error.message);
+                        }
+                    },
+                ));
+            } else {
+                group.append(armable(
+                    el('button', { className: 'btn btn--ghost btn--sm', text: 'Pause' }),
+                    'Pause key?',
+                    async () => {
+                        try {
+                            await api.pauseKey(key.id);
+                            await refresh();
+                        } catch (error) {
+                            onError(error.message);
+                        }
+                    },
+                ));
+            }
+
             group.append(armable(
                 el('button', { className: 'btn btn--ghost btn--sm', text: 'Rotate' }),
                 'Rotate key?',

@@ -354,6 +354,7 @@ input::placeholder { color: var(--text-faint); }
 .badge--active { background: var(--ok-bg); color: var(--ok); }
 .badge--revoked { background: var(--bad-bg); color: var(--bad); }
 .badge--expired { background: var(--warn-bg); color: var(--warn); }
+.badge--paused { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
 .badge--dev { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
 .badge--stage { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
 .badge--prod { background: rgba(239, 68, 68, 0.15); color: #ef4444; }

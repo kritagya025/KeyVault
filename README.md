@@ -16,8 +16,9 @@ KeyVault addresses key lifecycle management and access control in backend archit
 - **User Authentication**: JWT-based access for developers/users managing their accounts and keys.
 - **One-Way Hashing & Safe Previews**: Raw API keys (`kv_live_...`) are returned only once upon generation/regeneration. Only SHA-256 hashes are persisted in PostgreSQL, paired with safe masked identifiers (`kv_live_••••••••abcd`) for dashboard recognition.
 - **Granular Permissions & Metadata**: API keys can be scoped with `READ` or `WRITE` permissions, custom descriptions, and tags (`#analytics`, `#backend`, `#prod`) for organization and filtered querying.
-- **Full Lifecycle & Bulk Management**: Create, update metadata, revoke, rotate with zero-downtime grace periods, delete, regenerate keys, or perform bulk revocation/deletion across multiple keys.
-- **Immutable Audit Logging**: Every key lifecycle event (creation, updates, regeneration, rotation, revocation, bulk actions, and log purging) is recorded with immutable audit trails.
+- **CIDR/IP Whitelisting & Validation**: Restrict keys to explicit IPv4/IPv6 addresses or CIDR subnets (e.g., `192.168.1.0/24`, `2001:db8::/32`) with strict prefix bounds checking.
+- **Full Lifecycle & Bulk Management**: Create, duplicate/clone configuration, temporarily pause/resume, update metadata, revoke, rotate with zero-downtime grace periods, delete, regenerate keys, or perform bulk revocation/deletion across multiple keys.
+- **Immutable Audit Logging**: Every key lifecycle event (creation, duplication, pause/resume, updates, regeneration, rotation, revocation, bulk actions, and log purging) is recorded with immutable audit trails.
 - **Usage & Activity Tracking**: Intercepts requests to record endpoint calls, HTTP methods, response status codes, success metrics, and `lastUsedAt` timestamps per key without logging sensitive data. Paginated query endpoints support date range filtering, and historical logs can be purged on demand or exported as CSV.
 
 ---
@@ -80,9 +81,9 @@ Client Application (Consumer)         Developer / Dashboard User
           SHA-256 Hash stored in DB
                     │
                     ▼
-           ┌────────────────┐
-           │     ACTIVE     │
-           └───────┬────────┘
+           ┌────────────────┐ ── Pause Key (PATCH) ──► ┌──────────────┐
+           │     ACTIVE     │                          │    PAUSED    │
+           └───────┬────────┘ ◄─ Resume Key (PATCH) ── └──────────────┘
                    │
          ┌─────────┴─────────┐
          ▼                   ▼
@@ -251,15 +252,18 @@ Use the **Authorize** button in Swagger UI to test endpoints:
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/keys` | JWT | Generate new API key with permissions (`READ`, `WRITE`), optional environment (`DEVELOPMENT`, `STAGING`, `PRODUCTION`), IP restrictions, description, tags, rate limit, and expiry. Returns raw key once. |
-| `GET` | `/api/keys` | JWT | List API keys owned by current user with optional `?status=ACTIVE` (supports `ACTIVE`, `REVOKED`, `EXPIRED`, `EXPIRING_SOON`), `?query=name`, `?environment=PRODUCTION`, and `?tag=backend` filters. |
-| `GET` | `/api/keys/export` | JWT | Download complete API keys catalog as a formatted CSV file with optional `?status=` (`ACTIVE`, `REVOKED`, `EXPIRED`, `EXPIRING_SOON`), `?query=`, `?environment=`, and `?tag=` filtering. |
+| `GET` | `/api/keys` | JWT | List API keys owned by current user with optional `?status=ACTIVE` (supports `ACTIVE`, `REVOKED`, `EXPIRED`, `EXPIRING_SOON`, `PAUSED`), `?query=name`, `?environment=PRODUCTION`, and `?tag=backend` filters. |
+| `GET` | `/api/keys/export` | JWT | Download complete API keys catalog as a formatted CSV file with optional `?status=` (`ACTIVE`, `REVOKED`, `EXPIRED`, `EXPIRING_SOON`, `PAUSED`), `?query=`, `?environment=`, and `?tag=` filtering. |
 | `GET` | `/api/keys/summary` | JWT | Get account-level overview metrics (key counts by status, expiring-soon keys count, aggregate total/successful/failed requests). |
 | `GET` | `/api/keys/{id}` | JWT | Get single API key metadata, permissions, status, environment, description, tags, `maskedKey`, `rateLimit`, `ipRestrictions`, `expiringSoon`, and `lastUsedAt`. |
 | `PATCH` | `/api/keys/{id}` | JWT | Update key name, description, tags, permissions, environment, rate limit, IP restrictions, extend `expiresAt`, or clear expiration. |
 | `PATCH` | `/api/keys/{id}/revoke` | JWT | Revoke an API key immediately (`REVOKED`). |
+| `PATCH` | `/api/keys/{id}/pause` | JWT | Temporarily deactivate an active API key without revoking it. Authentication attempts with paused keys return `401 Unauthorized`. |
+| `PATCH` | `/api/keys/{id}/resume` | JWT | Restore a paused API key to active service. |
 | `DELETE` | `/api/keys/{id}` | JWT | Permanently delete API key and its associated usage history. |
 | `POST` | `/api/keys/bulk-revoke` | JWT | Bulk revoke multiple API keys by ID in a single operation. |
 | `POST` | `/api/keys/bulk-delete` | JWT | Bulk delete multiple API keys and their associated usage records by ID. |
+| `POST` | `/api/keys/{id}/duplicate` | JWT | Clone an existing API key's configuration (permissions, environment, rate limit, IP restrictions, tags, description) with an optional custom name and expiration. Emits raw key once. |
 | `POST` | `/api/keys/{id}/regenerate` | JWT | Regenerate an `ACTIVE` or `EXPIRED` key. Issues new raw key once. |
 | `POST` | `/api/keys/{id}/rotate` | JWT | Rotate an API key with zero downtime, giving old key an overlapping grace period (default 24h). |
 | `POST` | `/api/keys/{id}/renew` | JWT | Extend expiration of an active or expired API key by a specified number of days (`extensionDays`, default 30) or explicit date (`newExpiresAt`). |
@@ -334,6 +338,23 @@ curl -X PATCH http://localhost:8080/api/keys/1 \
 
 # Permanently delete API key
 curl -X DELETE http://localhost:8080/api/keys/1 \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+### 5. Duplicate, Pause, and Resume Key
+```bash
+# Clone an existing key with custom name
+curl -X POST http://localhost:8080/api/keys/1/duplicate \
+  -H "Authorization: Bearer <JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Worker Secondary Key"}'
+
+# Temporarily pause an active key
+curl -X PATCH http://localhost:8080/api/keys/1/pause \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+
+# Resume a paused key
+curl -X PATCH http://localhost:8080/api/keys/1/resume \
   -H "Authorization: Bearer <JWT_TOKEN>"
 ```
 

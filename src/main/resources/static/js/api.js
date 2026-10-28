@@ -127,6 +127,12 @@ export const api = {
 
     renewKey: (id, payload = {}) => request('POST', `/api/keys/${id}/renew`, { body: payload }),
 
+    duplicateKey: (id, payload = {}) => request('POST', `/api/keys/${id}/duplicate`, { body: payload }),
+
+    pauseKey: (id) => request('PATCH', `/api/keys/${id}/pause`),
+
+    resumeKey: (id) => request('PATCH', `/api/keys/${id}/resume`),
+
     usageStats: (id) => request('GET', `/api/keys/${id}/usage`),
 
     recentUsage: (id) => request('GET', `/api/keys/${id}/usage/recent`),
