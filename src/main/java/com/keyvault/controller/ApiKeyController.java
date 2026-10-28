@@ -181,6 +181,18 @@ public class ApiKeyController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PostMapping("/{id}/duplicate")
+    @Operation(summary = "Duplicate API Key", description = "Clone an existing API key's configuration (description, tags, environment, rate limit, permissions, IP restrictions) with an optional custom name and expiration. Emits the raw key ONCE.")
+    public ResponseEntity<CreateApiKeyResponse> duplicateApiKey(
+            Authentication authentication,
+            @PathVariable Long id,
+            @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody(required = false) com.keyvault.dto.DuplicateApiKeyRequest request
+    ) {
+        User user = getUser(authentication);
+        CreateApiKeyResponse response = apiKeyService.duplicateApiKey(user, id, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     @PostMapping("/{id}/renew")
     @Operation(summary = "Renew API Key Expiration", description = "Extend the expiration of an active or expired API key by a specified number of days (default 30) or until an explicit date. Revoked keys cannot be renewed.")
     public ResponseEntity<ApiKeyResponse> renewApiKey(

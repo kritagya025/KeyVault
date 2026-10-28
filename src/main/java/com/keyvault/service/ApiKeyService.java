@@ -416,6 +416,70 @@ public class ApiKeyService {
     }
 
     /**
+     * Clones an existing API key's configuration (description, tags, environment,
+     * rateLimit, permissions, ipRestrictions) to issue a new API key.
+     * Revoked keys cannot be duplicated.
+     *
+     * @param user the key owner
+     * @param id the API key id to duplicate
+     * @param request optional override for key name and expiration
+     * @return creation response containing the newly issued key
+     */
+    @Transactional
+    public CreateApiKeyResponse duplicateApiKey(User user, Long id, com.keyvault.dto.DuplicateApiKeyRequest request) {
+        ApiKey originalKey = findApiKeyAndVerifyOwnership(user, id);
+
+        if (originalKey.isRevoked()) {
+            throw new IllegalStateException("Cannot duplicate a revoked API key");
+        }
+
+        String newName;
+        if (request != null && request.getName() != null && !request.getName().trim().isEmpty()) {
+            newName = request.getName().trim();
+        } else {
+            newName = "Copy of " + originalKey.getName();
+            if (newName.length() > 100) {
+                newName = newName.substring(0, 100);
+            }
+        }
+
+        LocalDateTime newExpiresAt = null;
+        LocalDateTime now = LocalDateTime.now();
+        if (request != null && request.getExpiresAt() != null) {
+            if (request.getExpiresAt().isBefore(now)) {
+                throw new IllegalArgumentException("Expiration date must be in the future");
+            }
+            newExpiresAt = request.getExpiresAt();
+        } else if (originalKey.getExpiresAt() != null && originalKey.getExpiresAt().isAfter(now)) {
+            newExpiresAt = originalKey.getExpiresAt();
+        }
+
+        String rawApiKey = apiKeyGenerator.generateRawApiKey();
+        String keyHash = apiKeyGenerator.hashApiKey(rawApiKey);
+        String maskedKey = apiKeyGenerator.maskApiKey(rawApiKey);
+
+        ApiKey newKey = ApiKey.builder()
+                .name(newName)
+                .description(originalKey.getDescription())
+                .tags(new java.util.HashSet<>(originalKey.getTags()))
+                .keyHash(keyHash)
+                .maskedKey(maskedKey)
+                .expiresAt(newExpiresAt)
+                .revoked(false)
+                .user(user)
+                .permissions(new java.util.HashSet<>(originalKey.getPermissions()))
+                .ipRestrictions(new java.util.HashSet<>(originalKey.getIpRestrictions()))
+                .environment(originalKey.getEnvironment())
+                .rateLimit(originalKey.getRateLimit())
+                .build();
+
+        ApiKey saved = apiKeyRepository.save(newKey);
+        auditLogService.recordEvent(saved.getId(), saved.getName(), user.getId(), "DUPLICATED", "Duplicated configuration from key #" + originalKey.getId());
+
+        return toCreateResponse(saved, rawApiKey);
+    }
+
+    /**
      * Extends or updates the expiration of an active or expired API key.
      * Revoked keys cannot be renewed.
      *

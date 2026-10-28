@@ -424,4 +424,56 @@ class ApiKeyServiceTest {
         assertEquals(1, results.size());
         assertEquals(50L, results.get(0).getId());
     }
+
+    @Test
+    @DisplayName("Duplicating a key copies metadata and emits a new raw key")
+    void duplicateApiKeyCopiesMetadataAndGeneratesNewKey() {
+        ApiKey source = ApiKey.builder()
+                .id(60L)
+                .name("Production Service")
+                .description("Production read/write key")
+                .tags(Set.of("prod", "backend"))
+                .keyHash("old_hash")
+                .maskedKey("kv_live_...1234")
+                .user(owner)
+                .environment(com.keyvault.entity.KeyEnvironment.PRODUCTION)
+                .rateLimit(100)
+                .permissions(Set.of(Permission.READ, Permission.WRITE))
+                .ipRestrictions(Set.of("192.168.1.0/24"))
+                .revoked(false)
+                .build();
+
+        when(apiKeyRepository.findById(60L)).thenReturn(Optional.of(source));
+        stubSaveEchoingArgument();
+
+        CreateApiKeyResponse response = apiKeyService.duplicateApiKey(owner, 60L,
+                com.keyvault.dto.DuplicateApiKeyRequest.builder()
+                        .name("Cloned Production Service")
+                        .build());
+
+        assertEquals("Cloned Production Service", response.getName());
+        assertEquals("Production read/write key", response.getDescription());
+        assertEquals(Set.of("prod", "backend"), response.getTags());
+        assertEquals(com.keyvault.entity.KeyEnvironment.PRODUCTION, response.getEnvironment());
+        assertEquals(100, response.getRateLimit());
+        assertEquals(Set.of(Permission.READ, Permission.WRITE), response.getPermissions());
+        assertEquals(Set.of("192.168.1.0/24"), response.getIpRestrictions());
+        assertTrue(response.getApiKey().startsWith("kv_live_"));
+        verify(auditLogService).recordEvent(
+                any(),
+                org.mockito.ArgumentMatchers.eq("Cloned Production Service"),
+                org.mockito.ArgumentMatchers.eq(OWNER_ID),
+                org.mockito.ArgumentMatchers.eq("DUPLICATED"),
+                org.mockito.ArgumentMatchers.contains("key #60")
+        );
+    }
+
+    @Test
+    @DisplayName("Duplicating a revoked key throws IllegalStateException")
+    void duplicateApiKeyRejectsRevokedKey() {
+        ApiKey revoked = storedKey(61L, owner, LocalDateTime.now(), null, true);
+        when(apiKeyRepository.findById(61L)).thenReturn(Optional.of(revoked));
+
+        assertThrows(IllegalStateException.class, () -> apiKeyService.duplicateApiKey(owner, 61L, null));
+    }
 }
