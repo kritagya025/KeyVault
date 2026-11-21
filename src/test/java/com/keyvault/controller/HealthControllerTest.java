@@ -28,6 +28,14 @@ public class HealthControllerTest {
     }
 
     @Test
+    void testHealthReadyEndpointReturnsConnected() throws Exception {
+        mockMvc.perform(get("/api/health/ready"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.database").value("CONNECTED"));
+    }
+
+    @Test
     void testHealthMetricsEndpointReturnsSystemMetrics() throws Exception {
         mockMvc.perform(get("/api/health/metrics"))
                 .andExpect(status().isOk())
