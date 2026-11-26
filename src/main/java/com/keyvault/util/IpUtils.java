@@ -37,8 +37,16 @@ public final class IpUtils {
             }
         }
 
+        if (!isIpLiteral(trimmedIp)) {
+            return false;
+        }
+
         if (trimmedRule.contains("/")) {
             return matchesCidr(trimmedIp, trimmedRule);
+        }
+
+        if (!isIpLiteral(trimmedRule)) {
+            return false;
         }
 
         try {
@@ -46,24 +54,33 @@ public final class IpUtils {
             InetAddress ruleAddr = InetAddress.getByName(trimmedRule);
             return clientAddr.equals(ruleAddr);
         } catch (UnknownHostException e) {
-            return trimmedIp.equalsIgnoreCase(trimmedRule);
+            return false;
         }
     }
 
     private static boolean matchesCidr(String clientIp, String cidr) {
         try {
-            String[] parts = cidr.split("/");
+            String[] parts = cidr.split("/", -1);
             if (parts.length != 2) {
                 return false;
             }
-            InetAddress targetAddr = InetAddress.getByName(parts[0]);
-            int prefixLength = Integer.parseInt(parts[1]);
+            String targetIp = parts[0].trim();
+            if (!isIpLiteral(targetIp)) {
+                return false;
+            }
 
+            int prefixLength = Integer.parseInt(parts[1].trim());
+            InetAddress targetAddr = InetAddress.getByName(targetIp);
             InetAddress clientAddr = InetAddress.getByName(clientIp);
             byte[] targetBytes = targetAddr.getAddress();
             byte[] clientBytes = clientAddr.getAddress();
 
             if (targetBytes.length != clientBytes.length) {
+                return false;
+            }
+
+            int maxBits = targetBytes.length * 8;
+            if (prefixLength < 0 || prefixLength > maxBits) {
                 return false;
             }
 
@@ -112,8 +129,12 @@ public final class IpUtils {
             }
             return false;
         } else {
-            return isValidIpv4(trimmed) || isValidIpv6(trimmed);
+            return isIpLiteral(trimmed);
         }
+    }
+
+    public static boolean isIpLiteral(String ip) {
+        return isValidIpv4(ip) || isValidIpv6(ip);
     }
 
     public static boolean isValidIpv4(String ip) {

@@ -80,4 +80,25 @@ public class IpUtilsTest {
         assertFalse(IpUtils.isValidIpOrCidr("192.168.1.256"));
         assertFalse(IpUtils.isValidIpOrCidr("2001:db8::/129"));
     }
+
+    @Test
+    void testMatchesRejectsNegativeOrOutOfBoundsCidrPrefix() {
+        assertFalse(IpUtils.matches("10.0.0.5", "192.168.1.0/-1"));
+        assertFalse(IpUtils.matches("192.168.1.5", "192.168.1.0/33"));
+        assertFalse(IpUtils.matches("2001:db8::1", "2001:db8::/129"));
+        assertFalse(IpUtils.matches("192.168.1.5", "192.168.1.5/"));
+    }
+
+    @Test
+    void testMatchesRejectsHostnamesWithoutDnsLookup() {
+        assertFalse(IpUtils.matches("localhost", "127.0.0.1"));
+        assertFalse(IpUtils.matches("evil.example.invalid", "evil.example.invalid"));
+        assertFalse(IpUtils.matches("127.0.0.1", "localhost"));
+    }
+
+    @Test
+    void testMatchesIpv6Cidr() {
+        assertTrue(IpUtils.matches("2001:db8::42", "2001:db8::/32"));
+        assertFalse(IpUtils.matches("2001:db9::42", "2001:db8::/32"));
+    }
 }
