@@ -216,10 +216,12 @@ public class ApiKeyAuthenticationIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("X-RateLimit-Remaining", "0"));
 
-        // 3rd request -> 429 Too Many Requests
+        // 3rd request -> 429 Too Many Requests with Retry-After header
         mockMvc.perform(get("/api/protected/hello")
                         .header("X-API-Key", rawApiKey))
                 .andExpect(status().is(429))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().exists("Retry-After"))
+                .andExpect(jsonPath("$.status").value(429))
                 .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("Rate limit exceeded")));
     }
 }

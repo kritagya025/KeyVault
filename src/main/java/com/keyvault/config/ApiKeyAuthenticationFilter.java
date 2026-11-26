@@ -93,8 +93,10 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
                         if (!rateResult.isAllowed()) {
                             response.setStatus(429);
+                            response.setHeader("Retry-After", String.valueOf(rateResult.getResetSeconds()));
                             response.setContentType("application/json");
-                            response.getWriter().write("{\"error\":\"Rate limit exceeded. Try again in " + rateResult.getResetSeconds() + " seconds.\"}");
+                            String message = "Rate limit exceeded. Try again in " + rateResult.getResetSeconds() + " seconds.";
+                            response.getWriter().write("{\"status\":429,\"error\":\"" + message + "\",\"message\":\"" + message + "\"}");
                             return;
                         }
                     }
