@@ -355,21 +355,24 @@ class ApiKeyServiceTest {
     }
 
     @Test
-    @DisplayName("Account summary computes aggregate key counts and usage stats")
+    @DisplayName("Account summary computes aggregate key counts and usage stats including paused keys")
     void getAccountSummaryComputesCorrectMetrics() {
         ApiKey activeKey = storedKey(31L, owner, LocalDateTime.now(), null, false);
         ApiKey revokedKey = storedKey(32L, owner, LocalDateTime.now(), null, true);
         ApiKey expiredKey = storedKey(33L, owner, LocalDateTime.now().minusDays(10), LocalDateTime.now().minusDays(1), false);
+        ApiKey pausedKey = storedKey(34L, owner, LocalDateTime.now(), null, false);
+        pausedKey.setPaused(true);
 
-        when(apiKeyRepository.findByUserId(OWNER_ID)).thenReturn(List.of(activeKey, revokedKey, expiredKey));
+        when(apiKeyRepository.findByUserId(OWNER_ID)).thenReturn(List.of(activeKey, revokedKey, expiredKey, pausedKey));
         when(apiUsageRepository.countByUserId(OWNER_ID)).thenReturn(50L);
         when(apiUsageRepository.countByUserIdAndSuccessfulTrue(OWNER_ID)).thenReturn(45L);
         when(apiUsageRepository.countByUserIdAndSuccessfulFalse(OWNER_ID)).thenReturn(5L);
 
         com.keyvault.dto.ApiKeyOverviewResponse summary = apiKeyService.getAccountSummary(owner);
 
-        assertEquals(3L, summary.getTotalKeys());
+        assertEquals(4L, summary.getTotalKeys());
         assertEquals(1L, summary.getActiveKeys());
+        assertEquals(1L, summary.getPausedKeys());
         assertEquals(1L, summary.getRevokedKeys());
         assertEquals(1L, summary.getExpiredKeys());
         assertEquals(0L, summary.getExpiringSoonKeys());
@@ -525,5 +528,29 @@ class ApiKeyServiceTest {
         when(apiKeyRepository.findById(72L)).thenReturn(Optional.of(revoked));
 
         assertThrows(IllegalStateException.class, () -> apiKeyService.pauseApiKey(owner, 72L));
+    }
+
+    @Test
+    @DisplayName("Creating and updating keys trims tags and discards blank entries")
+    void normalizesTagsOnCreateAndUpdate() {
+        stubSaveEchoingArgument();
+
+        CreateApiKeyResponse created = apiKeyService.createApiKey(owner,
+                CreateApiKeyRequest.builder()
+                        .name("Tagged Key")
+                        .tags(Set.of("  prod ", "   ", "\tanalytics\n"))
+                        .build());
+
+        assertEquals(Set.of("prod", "analytics"), created.getTags());
+
+        ApiKey stored = storedKey(73L, owner, LocalDateTime.now(), null, false);
+        when(apiKeyRepository.findById(73L)).thenReturn(Optional.of(stored));
+
+        ApiKeyResponse updated = apiKeyService.updateApiKey(owner, 73L,
+                com.keyvault.dto.UpdateApiKeyRequest.builder()
+                        .tags(Set.of(" staging ", ""))
+                        .build());
+
+        assertEquals(Set.of("staging"), updated.getTags());
     }
 }

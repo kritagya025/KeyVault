@@ -282,6 +282,7 @@ public class ApiKeyIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalKeys").value(2))
                 .andExpect(jsonPath("$.activeKeys").value(1))
+                .andExpect(jsonPath("$.pausedKeys").value(0))
                 .andExpect(jsonPath("$.revokedKeys").value(1))
                 .andExpect(jsonPath("$.expiredKeys").value(0))
                 .andExpect(jsonPath("$.expiringSoonKeys").value(0))

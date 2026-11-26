@@ -106,12 +106,18 @@ public class ApiKeyPauseResumeIntegrationTest {
                         .header("X-API-Key", rawApiKey))
                 .andExpect(status().isUnauthorized());
 
-        // 4. Listing with ?status=PAUSED returns the key
+        // 4. Listing with ?status=PAUSED returns the key and summary reflects pausedKeys
         mockMvc.perform(get("/api/keys?status=PAUSED")
                         .header("Authorization", "Bearer " + userToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(keyId))
                 .andExpect(jsonPath("$[0].status").value("PAUSED"));
+
+        mockMvc.perform(get("/api/keys/summary")
+                        .header("Authorization", "Bearer " + userToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pausedKeys").value(1))
+                .andExpect(jsonPath("$.activeKeys").value(0));
 
         // 5. Resume the key
         mockMvc.perform(patch("/api/keys/" + keyId + "/resume")

@@ -67,9 +67,7 @@ public class ApiKeyService {
                 ? new java.util.HashSet<>(request.getIpRestrictions())
                 : new java.util.HashSet<>();
 
-        Set<String> tags = request.getTags() != null
-                ? new java.util.HashSet<>(request.getTags())
-                : new java.util.HashSet<>();
+        Set<String> tags = normalizeTags(request.getTags());
 
         com.keyvault.entity.KeyEnvironment environment = request.getEnvironment() != null
                 ? request.getEnvironment()
@@ -174,6 +172,7 @@ public class ApiKeyService {
         List<ApiKey> keys = apiKeyRepository.findByUserId(user.getId());
 
         long activeKeys = 0;
+        long pausedKeys = 0;
         long revokedKeys = 0;
         long expiredKeys = 0;
         long expiringSoonKeys = 0;
@@ -188,6 +187,7 @@ public class ApiKeyService {
                         expiringSoonKeys++;
                     }
                 }
+                case "PAUSED" -> pausedKeys++;
                 case "REVOKED" -> revokedKeys++;
                 case "EXPIRED" -> expiredKeys++;
             }
@@ -200,6 +200,7 @@ public class ApiKeyService {
         return com.keyvault.dto.ApiKeyOverviewResponse.builder()
                 .totalKeys(keys.size())
                 .activeKeys(activeKeys)
+                .pausedKeys(pausedKeys)
                 .revokedKeys(revokedKeys)
                 .expiredKeys(expiredKeys)
                 .expiringSoonKeys(expiringSoonKeys)
@@ -336,7 +337,7 @@ public class ApiKeyService {
         }
 
         if (request.getTags() != null) {
-            apiKey.setTags(new java.util.HashSet<>(request.getTags()));
+            apiKey.setTags(normalizeTags(request.getTags()));
         }
 
         if (Boolean.TRUE.equals(request.getClearRateLimit())) {
@@ -705,5 +706,21 @@ public class ApiKeyService {
                 throw new IllegalArgumentException("Invalid IP address or CIDR notation: " + rule);
             }
         }
+    }
+
+    private Set<String> normalizeTags(Set<String> rawTags) {
+        if (rawTags == null) {
+            return new java.util.HashSet<>();
+        }
+        Set<String> normalized = new java.util.HashSet<>();
+        for (String tag : rawTags) {
+            if (tag != null) {
+                String trimmed = tag.trim();
+                if (!trimmed.isEmpty()) {
+                    normalized.add(trimmed);
+                }
+            }
+        }
+        return normalized;
     }
 }

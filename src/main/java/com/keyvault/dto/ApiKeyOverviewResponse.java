@@ -13,6 +13,7 @@ public class ApiKeyOverviewResponse {
 
     private long totalKeys;
     private long activeKeys;
+    private long pausedKeys;
     private long revokedKeys;
     private long expiredKeys;
     private long expiringSoonKeys;
