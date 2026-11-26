@@ -170,4 +170,44 @@ class AuthServiceTest {
         assertThrows(BadCredentialsException.class, () -> authService.changePassword(EMAIL, request));
         verify(userRepository, never()).save(any(User.class));
     }
+
+    @Test
+    @DisplayName("Changing password to the same password is rejected")
+    void changePasswordRejectsSamePassword() {
+        User user = existingUser();
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+
+        com.keyvault.dto.ChangePasswordRequest request = com.keyvault.dto.ChangePasswordRequest.builder()
+                .currentPassword(RAW_PASSWORD)
+                .newPassword(RAW_PASSWORD)
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () -> authService.changePassword(EMAIL, request));
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Registration and login normalize email case and surrounding whitespace")
+    void registerAndLoginNormalizeEmail() {
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
+
+        AuthResponse regResp = authService.register(RegisterRequest.builder()
+                .name("  Member ")
+                .email("  MeMbEr@ExAmPlE.COM ")
+                .password(RAW_PASSWORD)
+                .build());
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        assertEquals(EMAIL, captor.getValue().getEmail());
+        assertEquals("Member", captor.getValue().getName());
+        assertEquals(EMAIL, jwtUtils.getEmailFromToken(regResp.getAccessToken()));
+
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(captor.getValue()));
+        AuthResponse loginResp = authService.login(LoginRequest.builder()
+                .email("MEMBER@EXAMPLE.COM")
+                .password(RAW_PASSWORD)
+                .build());
+        assertTrue(jwtUtils.validateToken(loginResp.getAccessToken()));
+    }
 }

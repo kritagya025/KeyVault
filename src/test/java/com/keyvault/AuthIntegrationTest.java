@@ -153,4 +153,54 @@ public class AuthIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty());
     }
+
+    @Test
+    public void testCaseInsensitiveEmailDuplicateAndSamePasswordRejection() throws Exception {
+        RegisterRequest registerReq = RegisterRequest.builder()
+                .name("Case Test")
+                .email("CaseUser@Example.COM")
+                .password("password123")
+                .build();
+
+        org.springframework.test.web.servlet.MvcResult regResult = mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registerReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String jwt = objectMapper.readTree(regResult.getResponse().getContentAsString()).get("accessToken").asText();
+
+        // Registering lowercase variant conflicts (409)
+        RegisterRequest duplicateLower = RegisterRequest.builder()
+                .name("Duplicate")
+                .email("caseuser@example.com")
+                .password("password123")
+                .build();
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(duplicateLower)))
+                .andExpect(status().isConflict());
+
+        // Login with lowercase succeeds
+        LoginRequest lowerLogin = LoginRequest.builder()
+                .email("caseuser@example.com")
+                .password("password123")
+                .build();
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(lowerLogin)))
+                .andExpect(status().isOk());
+
+        // Changing password to the identical password returns 400
+        com.keyvault.dto.ChangePasswordRequest samePassReq = com.keyvault.dto.ChangePasswordRequest.builder()
+                .currentPassword("password123")
+                .newPassword("password123")
+                .build();
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/users/me/password")
+                        .header("Authorization", "Bearer " + jwt)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(samePassReq)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("New password must be different from current password"));
+    }
 }

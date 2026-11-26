@@ -2,6 +2,7 @@ package com.keyvault.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,5 +19,6 @@ public class LoginRequest {
     private String email;
 
     @NotBlank(message = "Password cannot be blank")
+    @Size(max = 72, message = "Password cannot exceed 72 characters")
     private String password;
 }
