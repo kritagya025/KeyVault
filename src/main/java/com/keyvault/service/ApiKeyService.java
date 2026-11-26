@@ -680,17 +680,17 @@ public class ApiKeyService {
             String rateLimitStr = key.getRateLimit() != null ? String.valueOf(key.getRateLimit()) : "unlimited";
 
             csv.append(key.getId() != null ? key.getId() : "").append(",")
-               .append(escapeCsv(key.getName())).append(",")
-               .append(escapeCsv(key.getDescription())).append(",")
-               .append(escapeCsv(key.getMaskedKey())).append(",")
-               .append(escapeCsv(key.getEnvironment() != null ? key.getEnvironment().name() : "")).append(",")
-               .append(escapeCsv(perms)).append(",")
-               .append(escapeCsv(tags)).append(",")
-               .append(escapeCsv(rateLimitStr)).append(",")
-               .append(escapeCsv(key.getStatus())).append(",")
-               .append(escapeCsv(key.getCreatedAt() != null ? key.getCreatedAt().toString() : "")).append(",")
-               .append(escapeCsv(key.getExpiresAt() != null ? key.getExpiresAt().toString() : "")).append(",")
-               .append(escapeCsv(key.getLastUsedAt() != null ? key.getLastUsedAt().toString() : "")).append("\r\n");
+               .append(com.keyvault.util.CsvUtils.escape(key.getName())).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(key.getDescription())).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(key.getMaskedKey())).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(key.getEnvironment() != null ? key.getEnvironment().name() : "")).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(perms)).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(tags)).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(rateLimitStr)).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(key.getStatus())).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(key.getCreatedAt() != null ? key.getCreatedAt().toString() : "")).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(key.getExpiresAt() != null ? key.getExpiresAt().toString() : "")).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(key.getLastUsedAt() != null ? key.getLastUsedAt().toString() : "")).append("\r\n");
         }
 
         return csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -705,15 +705,5 @@ public class ApiKeyService {
                 throw new IllegalArgumentException("Invalid IP address or CIDR notation: " + rule);
             }
         }
-    }
-
-    private String escapeCsv(String val) {
-        if (val == null) {
-            return "";
-        }
-        if (val.contains(",") || val.contains("\"") || val.contains("\n") || val.contains("\r")) {
-            return "\"" + val.replace("\"", "\"\"") + "\"";
-        }
-        return val;
     }
 }

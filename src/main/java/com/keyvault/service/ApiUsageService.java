@@ -169,9 +169,9 @@ public class ApiUsageService {
         csv.append("Timestamp,HTTP Method,Endpoint,Status Code,Success\r\n");
 
         for (ApiUsage log : logs) {
-            csv.append(escapeCsv(log.getTimestamp() != null ? log.getTimestamp().toString() : "")).append(",")
-               .append(escapeCsv(log.getHttpMethod())).append(",")
-               .append(escapeCsv(log.getEndpoint())).append(",")
+            csv.append(com.keyvault.util.CsvUtils.escape(log.getTimestamp() != null ? log.getTimestamp().toString() : "")).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(log.getHttpMethod())).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(log.getEndpoint())).append(",")
                .append(log.getStatusCode()).append(",")
                .append(log.isSuccessful()).append("\r\n");
         }
@@ -271,26 +271,16 @@ public class ApiUsageService {
             String keyIdStr = log.getApiKey() != null && log.getApiKey().getId() != null ? String.valueOf(log.getApiKey().getId()) : "";
             String keyNameStr = log.getApiKey() != null && log.getApiKey().getName() != null ? log.getApiKey().getName() : "";
 
-            csv.append(escapeCsv(log.getTimestamp() != null ? log.getTimestamp().toString() : "")).append(",")
+            csv.append(com.keyvault.util.CsvUtils.escape(log.getTimestamp() != null ? log.getTimestamp().toString() : "")).append(",")
                .append(keyIdStr).append(",")
-               .append(escapeCsv(keyNameStr)).append(",")
-               .append(escapeCsv(log.getHttpMethod())).append(",")
-               .append(escapeCsv(log.getEndpoint())).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(keyNameStr)).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(log.getHttpMethod())).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(log.getEndpoint())).append(",")
                .append(log.getStatusCode()).append(",")
                .append(log.isSuccessful()).append("\r\n");
         }
 
         return csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
-    }
-
-    private String escapeCsv(String val) {
-        if (val == null) {
-            return "";
-        }
-        if (val.contains(",") || val.contains("\"") || val.contains("\n") || val.contains("\r")) {
-            return "\"" + val.replace("\"", "\"\"") + "\"";
-        }
-        return val;
     }
 
     private void verifyApiKeyOwnership(User user, Long apiKeyId) {

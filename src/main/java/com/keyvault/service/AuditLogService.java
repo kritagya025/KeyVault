@@ -79,24 +79,14 @@ public class AuditLogService {
         csv.append("Timestamp,Log ID,API Key ID,Key Name,Action,Details\r\n");
 
         for (ApiKeyAuditLog log : logs) {
-            csv.append(escapeCsv(log.getTimestamp() != null ? log.getTimestamp().toString() : "")).append(",")
+            csv.append(com.keyvault.util.CsvUtils.escape(log.getTimestamp() != null ? log.getTimestamp().toString() : "")).append(",")
                .append(log.getId() != null ? log.getId() : "").append(",")
                .append(log.getApiKeyId() != null ? log.getApiKeyId() : "").append(",")
-               .append(escapeCsv(log.getKeyName())).append(",")
-               .append(escapeCsv(log.getAction())).append(",")
-               .append(escapeCsv(log.getDetails())).append("\r\n");
+               .append(com.keyvault.util.CsvUtils.escape(log.getKeyName())).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(log.getAction())).append(",")
+               .append(com.keyvault.util.CsvUtils.escape(log.getDetails())).append("\r\n");
         }
 
         return csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
-    }
-
-    private String escapeCsv(String val) {
-        if (val == null) {
-            return "";
-        }
-        if (val.contains(",") || val.contains("\"") || val.contains("\n") || val.contains("\r")) {
-            return "\"" + val.replace("\"", "\"\"") + "\"";
-        }
-        return val;
     }
 }
