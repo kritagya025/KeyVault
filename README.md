@@ -236,7 +236,8 @@ Use the **Authorize** button in Swagger UI to test endpoints:
 ### 1. Health Check & Metrics
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/health` | Public | Service health check (`UP`). |
+| `GET` | `/api/health` | Public | Liveness health check (`UP`). |
+| `GET` | `/api/health/ready` | Public | Database readiness probe checking active JDBC connectivity (`200 UP/CONNECTED` or `503 DOWN/UNAVAILABLE`). |
 | `GET` | `/api/health/metrics` | Public | System operational metrics (JVM memory, active threads, available processors, and uptime). |
 
 ### 2. User Authentication & Profile
@@ -254,7 +255,7 @@ Use the **Authorize** button in Swagger UI to test endpoints:
 | `POST` | `/api/keys` | JWT | Generate new API key with permissions (`READ`, `WRITE`), optional environment (`DEVELOPMENT`, `STAGING`, `PRODUCTION`), IP restrictions, description, tags, rate limit, and expiry. Returns raw key once. |
 | `GET` | `/api/keys` | JWT | List API keys owned by current user with optional `?status=ACTIVE` (supports `ACTIVE`, `REVOKED`, `EXPIRED`, `EXPIRING_SOON`, `PAUSED`), `?query=name`, `?environment=PRODUCTION`, and `?tag=backend` filters. |
 | `GET` | `/api/keys/export` | JWT | Download complete API keys catalog as a formatted CSV file with optional `?status=` (`ACTIVE`, `REVOKED`, `EXPIRED`, `EXPIRING_SOON`, `PAUSED`), `?query=`, `?environment=`, and `?tag=` filtering. |
-| `GET` | `/api/keys/summary` | JWT | Get account-level overview metrics (key counts by status, expiring-soon keys count, aggregate total/successful/failed requests). |
+| `GET` | `/api/keys/summary` | JWT | Get account-level overview metrics (key counts by status including `activeKeys`, `pausedKeys`, `revokedKeys`, `expiredKeys`, `expiringSoonKeys`, and aggregate total/successful/failed requests). |
 | `GET` | `/api/keys/{id}` | JWT | Get single API key metadata, permissions, status, environment, description, tags, `maskedKey`, `rateLimit`, `ipRestrictions`, `expiringSoon`, and `lastUsedAt`. |
 | `PATCH` | `/api/keys/{id}` | JWT | Update key name, description, tags, permissions, environment, rate limit, IP restrictions, extend `expiresAt`, or clear expiration. |
 | `PATCH` | `/api/keys/{id}/revoke` | JWT | Revoke an API key immediately (`REVOKED`). |
@@ -368,12 +369,12 @@ The suite runs against an in-memory H2 database in PostgreSQL compatibility mode
 ./mvnw test
 ```
 
-90 tests across two layers:
+152 tests across two layers:
 
 | Layer | Coverage |
 | :--- | :--- |
-| **Unit** (`ApiKeyServiceTest`, `AuthServiceTest`, `ApiUsageServiceTest`, `ApiKeyGeneratorTest`, `JwtUtilsTest`, `RateLimiterServiceTest`, `IpUtilsTest`) | Key hashing and SHA-256 digests, key masking, last-used updates, permission defaulting, expiry validation, revocation idempotency, regeneration windows, BCrypt password handling, profile updates, password change verification, JWT signing, expiry and secret validation, sliding-window rate limiting, and IP matching. |
-| **Integration** (`*IntegrationTest`) | Full request path through the Spring Security filter chain: registration and login, profile management, password updates, dual authentication, `READ`/`WRITE` permission enforcement, key lifecycle (creation, update, revocation, deletion), zero-downtime rotation, bulk key revocation/deletion, immutable audit trail generation, usage log date range queries, log purging, ownership isolation, usage tracking with pagination, key regeneration, and dashboard asset access. |
+| **Unit** (`ApiKeyServiceTest`, `AuthServiceTest`, `ApiUsageServiceTest`, `ApiKeyGeneratorTest`, `JwtUtilsTest`, `RateLimiterServiceTest`, `IpUtilsTest`, `CsvUtilsTest`) | Key hashing and SHA-256 digests, key masking, tag normalization, account summary metrics, last-used updates, permission defaulting, expiry validation, revocation idempotency, regeneration windows, BCrypt password handling, email normalization, password reuse checks, JWT signing, expiry and secret validation, per-key sliding-window rate limiting with stale bucket eviction, DNS-safe CIDR/IP matching, and CSV formula injection sanitization. |
+| **Integration / Controller** (`*IntegrationTest`, `HealthControllerTest`) | Full request path through the Spring Security filter chain: health/readiness probes, registration and login, profile management, password updates, dual authentication, `READ`/`WRITE` permission enforcement, key lifecycle (creation, update, revocation, deletion, pause/resume), zero-downtime rotation, bulk key revocation/deletion, immutable audit trail generation, usage log date range queries, log purging, CSV exports, ownership isolation, rate-limit `429`/`Retry-After` responses, security headers, uniform error handling, and dashboard asset access. |
 
 The `test` profile lives in `src/test/resources/application-test.yml`. Every test class is annotated `@ActiveProfiles("test")`, so no production configuration is ever loaded during a test run.
 
@@ -385,13 +386,16 @@ The `test` profile lives in `src/test/resources/application-test.yml`. Every tes
 
 ## Security Summary
 
-1. **BCrypt Password Hashing**: User passwords are encrypted using BCrypt prior to persistence.
+See [SECURITY.md](SECURITY.md) for the vulnerability disclosure policy and full security architecture. Key protections include:
+
+1. **BCrypt Password Hashing & Normalization**: User passwords are encrypted using BCrypt (with a 72-character input bound), emails are normalized case-insensitively, and password changes reject identical reuse.
 2. **SHA-256 Key Hashing**: Raw API keys are never stored. Only hex SHA-256 digests are stored in PostgreSQL.
-3. **One-Time Key Emission**: Raw keys (`kv_live_...`) are returned only once upon creation/regeneration.
+3. **One-Time Key Emission**: Raw keys (`kv_live_...`) are returned only once upon creation/regeneration/rotation/duplication.
 4. **Ownership Protection**: Cross-user access returns `404 Not Found` to prevent resource enumeration.
-5. **No Secret Leaks**: Passwords, raw keys, and key hashes are omitted from JSON outputs and system logs.
-6. **No Committed Credentials**: Database credentials and the JWT signing secret are supplied through environment variables. The repository ships defaults for local development only, and the application refuses a signing secret weaker than 256 bits.
-7. **Unprivileged Container**: The Docker image runs as a non-root user and contains only a JRE and the application jar.
+5. **No Secret Leaks**: Passwords, raw keys, and key hashes are omitted from JSON outputs and system logs, and `GlobalExceptionHandler` masks internal Java types on malformed input.
+6. **CSV Formula Injection & Network Hardening**: `CsvUtils` neutralizes spreadsheet formula triggers (CWE-1236) across exports, `IpUtils` validates IP literals without DNS lookups on untrusted headers, and `SecurityConfig` sets `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy` headers.
+7. **No Committed Credentials**: Database credentials and the JWT signing secret are supplied through environment variables. The repository ships defaults for local development only, and the application refuses a signing secret weaker than 256 bits.
+8. **Unprivileged Container**: The Docker image runs as a non-root user and contains only a JRE and the application jar.
 
 ---
 
